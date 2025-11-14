@@ -22,10 +22,12 @@ const convertPDFPageToImage = async (page: pdfjsLib.PDFPageProxy): Promise<strin
   canvas.height = viewport.height;
   canvas.width = viewport.width;
 
-  await page.render({
+  const renderContext: any = {
     canvasContext: context,
     viewport: viewport,
-  }).promise;
+  };
+
+  await page.render(renderContext).promise;
 
   return canvas.toDataURL('image/png');
 };
