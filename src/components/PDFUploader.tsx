@@ -76,7 +76,7 @@ const PDFUploader = () => {
           if (dbError) throw dbError;
           pdfDocId = pdfDoc.id;
 
-          // Extract text from PDF
+          // Extract text from PDF with timeout
           toast({
             title: "Processing PDF",
             description: `Analyzing ${file.name}...`,
@@ -85,12 +85,20 @@ const PDFUploader = () => {
           const { extractTextFromPDF, estimateReadingTime } = await import("@/services/pdfService");
           const { needsOCR, processPDFWithOCR } = await import("@/services/ocrService");
           
-          let extractedText = await extractTextFromPDF(file, (msg) => {
-            toast({
-              title: "Processing PDF",
-              description: msg,
-            });
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Processing timeout - PDF may be corrupted or too large")), 120000); // 2 minute timeout
           });
+          
+          let extractedText = await Promise.race([
+            extractTextFromPDF(file, (msg) => {
+              toast({
+                title: "Processing PDF",
+                description: msg,
+              });
+            }),
+            timeoutPromise
+          ]);
 
           // Check if OCR is needed
           if (needsOCR(extractedText)) {
@@ -99,12 +107,15 @@ const PDFUploader = () => {
               description: "Using OCR to extract text...",
             });
 
-            extractedText = await processPDFWithOCR(file, (progress) => {
-              toast({
-                title: "OCR Processing",
-                description: progress.status,
-              });
-            });
+            extractedText = await Promise.race([
+              processPDFWithOCR(file, (progress) => {
+                toast({
+                  title: "OCR Processing",
+                  description: progress.status,
+                });
+              }),
+              timeoutPromise
+            ]);
           }
 
           const duration = estimateReadingTime(extractedText);
