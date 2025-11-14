@@ -6,8 +6,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
-export const extractTextFromPDF = async (file: File): Promise<string> => {
+export const extractTextFromPDF = async (
+  file: File,
+  onProgress?: (message: string) => void
+): Promise<string> => {
   try {
+    onProgress?.('Analyzing PDF...');
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     

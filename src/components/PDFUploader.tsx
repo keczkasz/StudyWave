@@ -46,52 +46,104 @@ const PDFUploader = () => {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        let pdfDocId: string | null = null;
         
-        // Extract text from PDF
-        toast({
-          title: "Processing PDF",
-          description: `Extracting text from ${file.name}...`,
-        });
+        try {
+          // Upload file to storage first
+          const fileExt = file.name.split(".").pop();
+          const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
-        const { extractTextFromPDF, estimateReadingTime } = await import("@/services/pdfService");
-        const extractedText = await extractTextFromPDF(file);
-        const duration = estimateReadingTime(extractedText);
+          const { error: uploadError } = await supabase.storage
+            .from("pdf-uploads")
+            .upload(fileName, file);
 
-        // Upload file to storage
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+          if (uploadError) throw uploadError;
 
-        const { error: uploadError } = await supabase.storage
-          .from("pdf-uploads")
-          .upload(fileName, file);
+          // Create PDF document record with "processing" status
+          const { data: pdfDoc, error: dbError } = await supabase
+            .from("pdf_documents")
+            .insert({
+              user_id: session.user.id,
+              title: file.name.replace(".pdf", ""),
+              original_filename: file.name,
+              file_path: fileName,
+              file_size: file.size,
+              status: "processing",
+            })
+            .select()
+            .single();
 
-        if (uploadError) throw uploadError;
+          if (dbError) throw dbError;
+          pdfDocId = pdfDoc.id;
 
-        // Create PDF document record
-        const { data: pdfDoc, error: dbError } = await supabase
-          .from("pdf_documents")
-          .insert({
+          // Extract text from PDF
+          toast({
+            title: "Processing PDF",
+            description: `Analyzing ${file.name}...`,
+          });
+
+          const { extractTextFromPDF, estimateReadingTime } = await import("@/services/pdfService");
+          const { needsOCR, processPDFWithOCR } = await import("@/services/ocrService");
+          
+          let extractedText = await extractTextFromPDF(file, (msg) => {
+            toast({
+              title: "Processing PDF",
+              description: msg,
+            });
+          });
+
+          // Check if OCR is needed
+          if (needsOCR(extractedText)) {
+            toast({
+              title: "Scanned PDF detected",
+              description: "Using OCR to extract text...",
+            });
+
+            extractedText = await processPDFWithOCR(file, (progress) => {
+              toast({
+                title: "OCR Processing",
+                description: progress.status,
+              });
+            });
+          }
+
+          const duration = estimateReadingTime(extractedText);
+
+          // Create audio file record with extracted text
+          await supabase.from("audio_files").insert({
+            pdf_id: pdfDoc.id,
             user_id: session.user.id,
-            title: file.name.replace(".pdf", ""),
-            original_filename: file.name,
-            file_path: fileName,
-            file_size: file.size,
-            status: "completed",
-          })
-          .select()
-          .single();
+            extracted_text: extractedText,
+            duration_seconds: duration,
+          });
 
-        if (dbError) throw dbError;
+          // Update PDF status to completed
+          await supabase
+            .from("pdf_documents")
+            .update({ status: "completed" })
+            .eq("id", pdfDoc.id);
 
-        // Create audio file record with extracted text
-        await supabase.from("audio_files").insert({
-          pdf_id: pdfDoc.id,
-          user_id: session.user.id,
-          extracted_text: extractedText,
-          duration_seconds: duration,
-        });
+          setProgress(((i + 1) / files.length) * 100);
+        } catch (fileError: any) {
+          console.error(`Error processing ${file.name}:`, fileError);
+          
+          // Update PDF status to failed if we have a doc ID
+          if (pdfDocId) {
+            await supabase
+              .from("pdf_documents")
+              .update({
+                status: "failed",
+                error_message: fileError.message || "Failed to process PDF",
+              })
+              .eq("id", pdfDocId);
+          }
 
-        setProgress(((i + 1) / files.length) * 100);
+          toast({
+            title: `Failed to process ${file.name}`,
+            description: fileError.message,
+            variant: "destructive",
+          });
+        }
       }
 
       toast({
