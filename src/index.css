@@ -10,12 +10,12 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Rich Purple - Primary brand color */
-    --primary: 265 85% 58%;
+    /* Dark Purple - Primary brand color (inspired by Audioteka) */
+    --primary: 265 75% 55%;
     --primary-foreground: 0 0% 100%;
     
-    /* Deep Navy - Accent color */
-    --accent: 230 60% 25%;
+    /* Bright Purple - Accent */
+    --accent: 280 85% 65%;
     --accent-foreground: 0 0% 100%;
     
     /* Soft Violet - Secondary */
@@ -56,20 +56,22 @@ All colors MUST be HSL.
     --status-failed: 0 84% 60%;
     --status-pending: 230 10% 65%;
 
+    /* Auth page specific - Dark purple theme */
+    --auth-bg-start: 270 100% 10%;
+    --auth-bg-mid: 270 80% 18%;
+    --auth-bg-end: 270 60% 28%;
+    --auth-card-bg: 270 50% 12%;
+    --auth-input-border: 270 40% 35%;
+    --auth-input-focus: 280 85% 65%;
+    --auth-glow: 280 85% 65%;
+
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
