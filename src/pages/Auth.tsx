@@ -123,103 +123,89 @@ const Auth = () => {
               </TabsTrigger>
             </TabsList>
 
-          <TabsContent value="signin" className="animate-fade-in">
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/60">
-              <form onSubmit={handleSignIn} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
-                  />
-                </div>
-                <Button
-                  type="submit"
+            <TabsContent value="signin" className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signin-email" className="text-gray-700 font-medium">Email</Label>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
                   disabled={loading}
-                  className="w-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
-                >
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </div>
-          </TabsContent>
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signin-password" className="text-gray-700 font-medium">Password</Label>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  disabled={loading}
+                />
+              </div>
+              <Button
+                onClick={handleSignIn}
+                disabled={loading}
+                className="w-full bg-[#475569] hover:bg-[#334155] text-white shadow-lg hover:shadow-xl transition-all"
+                size="lg"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </Button>
+            </TabsContent>
 
-          <TabsContent value="signup" className="animate-fade-in">
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/60">
-              <form onSubmit={handleSignUp} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name" className="text-sm font-medium text-foreground">
-                    Full Name
-                  </Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
-                    Email
-                  </Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
-                    Password
-                  </Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
-                  />
-                </div>
-                <Button
-                  type="submit"
+            <TabsContent value="signup" className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signup-name" className="text-gray-700 font-medium">Full Name</Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
                   disabled={loading}
-                  className="w-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
-                >
-                  {loading ? "Creating account..." : "Sign Up"}
-                </Button>
-              </form>
-            </div>
-          </TabsContent>
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signup-email" className="text-gray-700 font-medium">Email</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signup-password" className="text-gray-700 font-medium">Password</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  disabled={loading}
+                />
+              </div>
+              <Button
+                onClick={handleSignUp}
+                disabled={loading}
+                className="w-full bg-[#475569] hover:bg-[#334155] text-white shadow-lg hover:shadow-xl transition-all"
+                size="lg"
+              >
+                {loading ? "Creating account..." : "Create Account"}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </div>
         
         {/* Footer */}
         <p className="text-center text-sm text-white/80 drop-shadow">
