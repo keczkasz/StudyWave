@@ -10,6 +10,12 @@ const PDFUploader = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [ocrProgress, setOcrProgress] = useState<{
+    fileName: string;
+    current: number;
+    total: number;
+    percentage: number;
+  } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -108,14 +114,22 @@ const PDFUploader = () => {
             });
 
             extractedText = await Promise.race([
-              processPDFWithOCR(file, (progress) => {
+              processPDFWithOCR(file, (ocrProgressData) => {
+                const percentage = Math.round((ocrProgressData.page / ocrProgressData.totalPages) * 100);
+                setOcrProgress({
+                  fileName: file.name,
+                  current: ocrProgressData.page,
+                  total: ocrProgressData.totalPages,
+                  percentage,
+                });
                 toast({
                   title: "OCR Processing",
-                  description: progress.status,
+                  description: `Scanning page ${ocrProgressData.page} of ${ocrProgressData.totalPages} (${percentage}%)`,
                 });
               }),
               timeoutPromise
             ]);
+            setOcrProgress(null);
           }
 
           const duration = estimateReadingTime(extractedText);
@@ -138,23 +152,40 @@ const PDFUploader = () => {
         } catch (fileError: any) {
           console.error(`Error processing ${file.name}:`, fileError);
           
-          // Update PDF status to failed if we have a doc ID
+          // Always update PDF status to failed if we have a doc ID
           if (pdfDocId) {
-            await supabase
-              .from("pdf_documents")
-              .update({
-                status: "failed",
-                error_message: fileError.message || "Failed to process PDF",
-              })
-              .eq("id", pdfDocId);
+            try {
+              await supabase
+                .from("pdf_documents")
+                .update({
+                  status: "failed",
+                  error_message: fileError.message || "Failed to process PDF",
+                })
+                .eq("id", pdfDocId);
+            } catch (dbError) {
+              console.error("Failed to update database status:", dbError);
+            }
+          }
+
+          // Show specific error messages
+          let errorMessage = fileError.message;
+          if (fileError.message?.includes("timeout")) {
+            errorMessage = "Processing timeout - PDF may be too large or corrupted. Please try a smaller file.";
+          } else if (fileError.message?.includes("OCR")) {
+            errorMessage = "OCR processing failed - the PDF may have poor image quality.";
+          } else if (fileError.message?.includes("worker")) {
+            errorMessage = "Failed to initialize PDF reader. Please try again.";
           }
 
           toast({
             title: `Failed to process ${file.name}`,
-            description: fileError.message,
+            description: errorMessage,
             variant: "destructive",
           });
         }
+        
+        // Clear OCR progress after each file
+        setOcrProgress(null);
       }
 
       toast({
@@ -231,7 +262,29 @@ const PDFUploader = () => {
             ))}
           </div>
 
-          {uploading && <Progress value={progress} className="w-full" />}
+          {uploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Upload Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <Progress value={progress} className="w-full" />
+            </div>
+          )}
+
+          {ocrProgress && (
+            <div className="space-y-2 p-4 bg-secondary/50 rounded-lg border border-border">
+              <div className="flex justify-between text-sm font-medium">
+                <span className="truncate max-w-[200px]">{ocrProgress.fileName}</span>
+                <span>{ocrProgress.percentage}%</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>OCR Scanning</span>
+                <span>Page {ocrProgress.current} of {ocrProgress.total}</span>
+              </div>
+              <Progress value={ocrProgress.percentage} className="w-full" />
+            </div>
+          )}
 
           <Button
             onClick={uploadFiles}
@@ -239,7 +292,7 @@ const PDFUploader = () => {
             className="w-full"
             size="lg"
           >
-            {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
+            {uploading ? "Processing..." : `Upload ${files.length} file(s)`}
           </Button>
         </div>
       )}
