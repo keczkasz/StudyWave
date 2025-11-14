@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Headphones } from "lucide-react";
+import authBg from "@/assets/auth-bg.png";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -75,37 +77,51 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Subtle background pattern */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-      </div>
-
-      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
-        <div className="text-center mb-10">
-          <h1 className="text-6xl font-bold mb-3 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative"
+      style={{
+        backgroundImage: `url(${authBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Dark overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+      
+      <div className="w-full max-w-md space-y-8 animate-fade-in relative z-10">
+        {/* Logo and Title */}
+        <div className="text-center space-y-2">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-lg">
+              <Headphones className="h-12 w-12 text-white drop-shadow-lg" />
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-lg">
             StudyWave
           </h1>
-          <p className="text-xl text-muted-foreground font-medium mb-1">PDF2Audio</p>
-          <p className="text-sm text-muted-foreground/80">Transform your PDFs into audiobooks</p>
+          <p className="text-white/90 drop-shadow">
+            Transform PDFs into Audio Books
+          </p>
         </div>
 
-        <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/80 backdrop-blur-sm shadow-sm">
-            <TabsTrigger 
-              value="signin"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 ease-out"
-            >
-              Sign In
-            </TabsTrigger>
-            <TabsTrigger 
-              value="signup"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 ease-out"
-            >
-              Sign Up
-            </TabsTrigger>
-          </TabsList>
+        {/* Auth Form */}
+        <div className="bg-white/85 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-gray-100/80">
+              <TabsTrigger 
+                value="signin"
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600 transition-all"
+              >
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger 
+                value="signup"
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600 transition-all"
+              >
+                Sign Up
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="signin" className="animate-fade-in">
             <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/60">
@@ -204,7 +220,11 @@ const Auth = () => {
               </form>
             </div>
           </TabsContent>
-        </Tabs>
+        
+        {/* Footer */}
+        <p className="text-center text-sm text-white/80 drop-shadow">
+          Start listening to your study materials today
+        </p>
       </div>
     </div>
   );
