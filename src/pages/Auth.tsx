@@ -75,75 +75,73 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-[hsl(var(--auth-bg-start))] via-[hsl(var(--auth-bg-mid))] to-[hsl(var(--auth-bg-end))]">
-      {/* Animated background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-glow" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1s' }} />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
       </div>
 
       <div className="w-full max-w-md relative z-10 animate-fade-in-up">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-white via-accent to-primary bg-clip-text text-transparent animate-scale-in">
+        <div className="text-center mb-10">
+          <h1 className="text-6xl font-bold mb-3 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
             StudyWave
           </h1>
-          <p className="text-lg text-white/60 font-medium">PDF2Audio</p>
-          <p className="text-white/80 mt-2">Transform your PDFs into audiobooks</p>
+          <p className="text-xl text-muted-foreground font-medium mb-1">PDF2Audio</p>
+          <p className="text-sm text-muted-foreground/80">Transform your PDFs into audiobooks</p>
         </div>
 
         <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/5 backdrop-blur-sm border border-white/10">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/80 backdrop-blur-sm shadow-sm">
             <TabsTrigger 
               value="signin"
-              className="data-[state=active]:bg-accent/80 data-[state=active]:text-white transition-all duration-300"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 ease-out"
             >
               Sign In
             </TabsTrigger>
             <TabsTrigger 
               value="signup"
-              className="data-[state=active]:bg-accent/80 data-[state=active]:text-white transition-all duration-300"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 ease-out"
             >
               Sign Up
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="signin" className="animate-fade-in">
-            <div className="bg-[hsl(var(--auth-card-bg))]/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/10">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/60">
               <form onSubmit={handleSignIn} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white/90 font-medium">Email</Label>
+                  <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     type="email"
+                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="you@example.com"
-                    className="bg-white/5 border-[hsl(var(--auth-input-border))] text-white placeholder:text-white/40 
-                             focus:border-[hsl(var(--auth-input-focus))] focus:ring-2 focus:ring-[hsl(var(--auth-input-focus))]/50
-                             transition-all duration-300 backdrop-blur-sm"
+                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-white/90 font-medium">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                    Password
+                  </Label>
                   <Input
                     id="password"
                     type="password"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
-                    className="bg-white/5 border-[hsl(var(--auth-input-border))] text-white placeholder:text-white/40 
-                             focus:border-[hsl(var(--auth-input-focus))] focus:ring-2 focus:ring-[hsl(var(--auth-input-focus))]/50
-                             transition-all duration-300 backdrop-blur-sm"
+                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
                   />
                 </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-6 
-                           transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
-                           shadow-lg hover:shadow-accent/50"
+                <Button
+                  type="submit"
                   disabled={loading}
+                  className="w-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
                 >
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
@@ -152,57 +150,54 @@ const Auth = () => {
           </TabsContent>
 
           <TabsContent value="signup" className="animate-fade-in">
-            <div className="bg-[hsl(var(--auth-card-bg))]/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/10">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/60">
               <form onSubmit={handleSignUp} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="fullname" className="text-white/90 font-medium">Full Name</Label>
+                  <Label htmlFor="signup-name" className="text-sm font-medium text-foreground">
+                    Full Name
+                  </Label>
                   <Input
-                    id="fullname"
+                    id="signup-name"
                     type="text"
+                    placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    placeholder="John Doe"
-                    className="bg-white/5 border-[hsl(var(--auth-input-border))] text-white placeholder:text-white/40 
-                             focus:border-[hsl(var(--auth-input-focus))] focus:ring-2 focus:ring-[hsl(var(--auth-input-focus))]/50
-                             transition-all duration-300 backdrop-blur-sm"
+                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-white/90 font-medium">Email</Label>
+                  <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
+                    Email
+                  </Label>
                   <Input
                     id="signup-email"
                     type="email"
+                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="you@example.com"
-                    className="bg-white/5 border-[hsl(var(--auth-input-border))] text-white placeholder:text-white/40 
-                             focus:border-[hsl(var(--auth-input-focus))] focus:ring-2 focus:ring-[hsl(var(--auth-input-focus))]/50
-                             transition-all duration-300 backdrop-blur-sm"
+                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-white/90 font-medium">Password</Label>
+                  <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
+                    Password
+                  </Label>
                   <Input
                     id="signup-password"
                     type="password"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
-                    minLength={6}
-                    className="bg-white/5 border-[hsl(var(--auth-input-border))] text-white placeholder:text-white/40 
-                             focus:border-[hsl(var(--auth-input-focus))] focus:ring-2 focus:ring-[hsl(var(--auth-input-focus))]/50
-                             transition-all duration-300 backdrop-blur-sm"
+                    className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 bg-white/90"
                   />
                 </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-accent hover:bg-accent/90 text-white font-semibold py-6 
-                           transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
-                           shadow-lg hover:shadow-accent/50"
+                <Button
+                  type="submit"
                   disabled={loading}
+                  className="w-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
                 >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
