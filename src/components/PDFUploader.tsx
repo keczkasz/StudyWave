@@ -91,9 +91,9 @@ const PDFUploader = () => {
           const { extractTextFromPDF, estimateReadingTime } = await import("@/services/pdfService");
           const { needsOCR, processPDFWithOCR } = await import("@/services/ocrService");
           
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error("Processing timeout - PDF may be corrupted or too large")), 120000); // 2 minute timeout
+          // Add timeout for text extraction (10 minutes)
+          const textExtractionTimeout = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Text extraction timeout - PDF may be too large")), 600000);
           });
           
           let extractedText = await Promise.race([
@@ -103,7 +103,7 @@ const PDFUploader = () => {
                 description: msg,
               });
             }),
-            timeoutPromise
+            textExtractionTimeout
           ]);
 
           // Check if OCR is needed
@@ -111,6 +111,11 @@ const PDFUploader = () => {
             toast({
               title: "Scanned PDF detected",
               description: "Using OCR to extract text...",
+            });
+
+            // Longer timeout for OCR (20 minutes)
+            const ocrTimeout = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("OCR timeout - PDF has too many pages or images are too complex")), 1200000);
             });
 
             extractedText = await Promise.race([
@@ -127,7 +132,7 @@ const PDFUploader = () => {
                   description: `Scanning page ${ocrProgressData.page} of ${ocrProgressData.totalPages} (${percentage}%)`,
                 });
               }),
-              timeoutPromise
+              ocrTimeout
             ]);
             setOcrProgress(null);
           }
