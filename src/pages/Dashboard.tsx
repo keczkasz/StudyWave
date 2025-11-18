@@ -74,17 +74,17 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-6xl">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
             Welcome back!
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Transform your PDFs into audiobooks with ease
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total PDFs</CardTitle>
@@ -131,10 +131,10 @@ const Dashboard = () => {
         {recentUploads.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Recent Uploads</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Recent Uploads</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-3 sm:space-y-4">
                 {recentUploads.map((pdf) => (
                   <div
                     key={pdf.id}

@@ -54,8 +54,8 @@ const Library = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-foreground mb-8">Library</h1>
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-6 sm:mb-8">Library</h1>
 
         <Tabs defaultValue="audiobooks" className="w-full">
           <TabsList>
@@ -63,13 +63,13 @@ const Library = () => {
             <TabsTrigger value="pdfs">PDFs</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="audiobooks" className="mt-6">
+          <TabsContent value="audiobooks" className="mt-4 sm:mt-6">
             {audiobooks.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-8 sm:py-12 text-sm sm:text-base text-muted-foreground">
                 No audiobooks yet. Upload a PDF to get started!
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {audiobooks.map((audio) => (
                   <LibraryCard
                     key={audio.id}
@@ -89,13 +89,13 @@ const Library = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="pdfs" className="mt-6">
+          <TabsContent value="pdfs" className="mt-4 sm:mt-6">
             {pdfs.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-8 sm:py-12 text-sm sm:text-base text-muted-foreground">
                 No PDFs yet. Upload one to get started!
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {pdfs.map((pdf) => (
                   <LibraryCard
                     key={pdf.id}

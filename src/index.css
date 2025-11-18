@@ -76,33 +76,34 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 230 25% 8%;
+    /* Elegant dark mode matching auth page aesthetic */
+    --background: 270 50% 8%;
     --foreground: 0 0% 98%;
-    --card: 230 20% 12%;
+    --card: 270 40% 12%;
     --card-foreground: 0 0% 98%;
-    --popover: 230 20% 12%;
+    --popover: 270 40% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 265 85% 58%;
+    --primary: 280 85% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 230 20% 18%;
+    --secondary: 270 30% 18%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 230 20% 18%;
-    --muted-foreground: 230 10% 65%;
-    --accent: 230 60% 25%;
+    --muted: 270 30% 16%;
+    --muted-foreground: 270 15% 70%;
+    --accent: 280 85% 65%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 50%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 230 20% 20%;
-    --input: 230 20% 20%;
-    --ring: 265 85% 58%;
-    --sidebar-background: 230 25% 10%;
+    --border: 270 30% 20%;
+    --input: 270 30% 20%;
+    --ring: 280 85% 65%;
+    --sidebar-background: 270 50% 10%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 265 85% 58%;
+    --sidebar-primary: 280 85% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 230 20% 15%;
+    --sidebar-accent: 270 35% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 230 20% 18%;
-    --sidebar-ring: 265 85% 58%;
+    --sidebar-border: 270 30% 18%;
+    --sidebar-ring: 280 85% 65%;
   }
 }
 
