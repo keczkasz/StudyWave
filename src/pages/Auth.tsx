@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Headphones } from "lucide-react";
 import authBg from "@/assets/auth-bg.png";
 
@@ -14,6 +15,8 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -76,6 +79,36 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/`,
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link",
+      });
+      setResetDialogOpen(false);
+      setResetEmail("");
+    }
+  };
+
   return (
     <div 
       className="min-h-screen flex items-center justify-center p-4 relative"
@@ -132,19 +165,52 @@ const Auth = () => {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  className="bg-white/70 border-gray-300 focus:border-slate-300 focus:ring-slate-200 text-gray-900 transition-colors"
                   disabled={loading}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="signin-password" className="text-gray-700 font-medium">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="signin-password" className="text-gray-700 font-medium">Password</Label>
+                  <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                    <DialogTrigger asChild>
+                      <button className="text-xs text-gray-600 hover:text-gray-900 hover:underline transition-colors">
+                        Forgot Password?
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Reset Password</DialogTitle>
+                        <DialogDescription>
+                          Enter your email address and we'll send you a password reset link.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="reset-email">Email</Label>
+                          <Input
+                            id="reset-email"
+                            type="email"
+                            placeholder="name@example.com"
+                            value={resetEmail}
+                            onChange={(e) => setResetEmail(e.target.value)}
+                            className="focus:border-slate-300 focus:ring-slate-200"
+                          />
+                        </div>
+                        <Button onClick={handleForgotPassword} className="w-full">
+                          Send Reset Link
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 <Input
                   id="signin-password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  className="bg-white/70 border-gray-300 focus:border-slate-300 focus:ring-slate-200 text-gray-900 transition-colors"
                   disabled={loading}
                 />
               </div>
@@ -167,7 +233,7 @@ const Auth = () => {
                   placeholder="John Doe"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  className="bg-white/70 border-gray-300 focus:border-slate-300 focus:ring-slate-200 text-gray-900 transition-colors"
                   disabled={loading}
                 />
               </div>
@@ -179,7 +245,7 @@ const Auth = () => {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  className="bg-white/70 border-gray-300 focus:border-slate-300 focus:ring-slate-200 text-gray-900 transition-colors"
                   disabled={loading}
                 />
               </div>
@@ -191,7 +257,7 @@ const Auth = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/70 border-gray-300 focus:border-gray-500 focus:ring-gray-500 text-gray-900 transition-colors"
+                  className="bg-white/70 border-gray-300 focus:border-slate-300 focus:ring-slate-200 text-gray-900 transition-colors"
                   disabled={loading}
                 />
               </div>

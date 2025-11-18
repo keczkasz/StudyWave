@@ -10,12 +10,12 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Dark Purple - Primary brand color (inspired by Audioteka) */
-    --primary: 265 75% 55%;
+    /* Steel Blue - Primary brand color */
+    --primary: 200 15% 45%;
     --primary-foreground: 0 0% 100%;
     
-    /* Bright Purple - Accent */
-    --accent: 280 85% 65%;
+    /* Light Steel Blue - Accent */
+    --accent: 200 20% 55%;
     --accent-foreground: 0 0% 100%;
     
     /* Soft Violet - Secondary */
@@ -23,7 +23,7 @@ All colors MUST be HSL.
     --secondary-foreground: 265 85% 25%;
     
     /* Progress/Warning */
-    --warning: 280 75% 65%;
+    --warning: 200 25% 60%;
     --warning-foreground: 0 0% 100%;
     
     /* Neutrals - Clean whites and grays */
@@ -51,7 +51,7 @@ All colors MUST be HSL.
     --radius: 0.75rem;
     
     /* Status colors */
-    --status-processing: 280 75% 65%;
+    --status-processing: 200 25% 60%;
     --status-completed: 142 71% 45%;
     --status-failed: 0 84% 60%;
     --status-pending: 230 10% 65%;
