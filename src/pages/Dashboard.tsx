@@ -138,7 +138,7 @@ const Dashboard = () => {
                 {recentUploads.map((pdf) => (
                   <div
                     key={pdf.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary cursor-pointer"
                     onClick={() => navigate(`/library`)}
                   >
                     <div className="flex items-center gap-3">

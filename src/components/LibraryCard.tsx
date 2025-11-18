@@ -30,19 +30,19 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="hover:shadow-lg transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           {item.type === "pdf" ? (
-            <FileText className="h-12 w-12 text-muted-foreground" />
+            <FileText className="h-12 w-12 text-primary" />
           ) : (
-            <Headphones className="h-12 w-12 text-muted-foreground" />
+            <Headphones className="h-12 w-12 text-accent" />
           )}
           <Button
             variant="ghost"
             size="icon"
             onClick={onDelete}
-            className="text-destructive hover:bg-destructive/10"
+            className="text-destructive"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
