@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Headphones, Clock, Upload } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, Headphones, Clock, Upload, Crown } from "lucide-react";
 import Navigation from "@/components/Navigation";
 
 const Dashboard = () => {
@@ -169,6 +169,31 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Choose Your Plan Card */}
+        <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Crown className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Upgrade to Premium</CardTitle>
+                <CardDescription>
+                  Unlock unlimited audiobooks, faster processing, and premium features
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              className="w-full sm:w-auto" 
+              onClick={() => navigate("/pricing")}
+            >
+              Choose Your Plan
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
