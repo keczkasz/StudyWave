@@ -10,20 +10,20 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Lavender Purple - Primary brand color */
-    --primary: 270 50% 65%;
+    /* Steel Blue-Gray - Primary brand color */
+    --primary: 200 15% 45%;
     --primary-foreground: 0 0% 100%;
     
-    /* Light Purple - Accent */
-    --accent: 280 60% 75%;
-    --accent-foreground: 270 50% 20%;
+    /* Light Steel Blue - Accent */
+    --accent: 200 20% 55%;
+    --accent-foreground: 200 15% 15%;
     
-    /* Soft Violet - Secondary */
-    --secondary: 270 50% 95%;
-    --secondary-foreground: 270 50% 30%;
+    /* Soft Gray - Secondary */
+    --secondary: 200 10% 95%;
+    --secondary-foreground: 200 15% 30%;
     
     /* Progress/Warning */
-    --warning: 280 50% 70%;
+    --warning: 200 15% 50%;
     --warning-foreground: 0 0% 100%;
     
     /* Neutrals - Clean whites and grays */
@@ -51,10 +51,10 @@ All colors MUST be HSL.
     --radius: 0.75rem;
     
     /* Status colors */
-    --status-processing: 270 50% 65%;
+    --status-processing: 200 15% 45%;
     --status-completed: 142 71% 45%;
     --status-failed: 0 84% 60%;
-    --status-pending: 270 30% 75%;
+    --status-pending: 200 10% 70%;
 
     /* Auth page specific - Dark purple theme */
     --auth-bg-start: 270 100% 10%;
