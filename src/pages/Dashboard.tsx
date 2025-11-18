@@ -85,33 +85,33 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
+          <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:border-primary/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total PDFs</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stats.totalPDFs}</div>
+              <div className="text-3xl font-bold text-primary">{stats.totalPDFs}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-lg hover:shadow-accent/20 transition-all duration-300 hover:border-accent/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Audiobooks</CardTitle>
-              <Headphones className="h-4 w-4 text-muted-foreground" />
+              <Headphones className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stats.totalAudiobooks}</div>
+              <div className="text-3xl font-bold text-accent">{stats.totalAudiobooks}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:border-primary/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Listening Time</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stats.totalListeningTime}</div>
+              <div className="text-3xl font-bold text-primary">{stats.totalListeningTime}</div>
               <p className="text-xs text-muted-foreground mt-1">minutes</p>
             </CardContent>
           </Card>
@@ -121,7 +121,7 @@ const Dashboard = () => {
           <Button
             size="lg"
             onClick={() => navigate("/upload")}
-            className="gap-2"
+            className="gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg hover:shadow-xl transition-all"
           >
             <Upload className="h-5 w-5" />
             Upload New PDF
@@ -131,18 +131,18 @@ const Dashboard = () => {
         {recentUploads.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Recent Uploads</CardTitle>
+              <CardTitle className="text-primary">Recent Uploads</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {recentUploads.map((pdf) => (
                   <div
                     key={pdf.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10 transition-all duration-300 hover:shadow-md hover:border-primary/30 border border-transparent cursor-pointer"
                     onClick={() => navigate(`/library`)}
                   >
                     <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <FileText className="h-5 w-5 text-primary" />
                       <div>
                         <p className="font-medium">{pdf.title}</p>
                         <p className="text-sm text-muted-foreground">

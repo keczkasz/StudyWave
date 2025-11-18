@@ -55,12 +55,12 @@ const Library = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-foreground mb-8">Library</h1>
+        <h1 className="text-4xl font-bold text-primary mb-8">Library</h1>
 
         <Tabs defaultValue="audiobooks" className="w-full">
           <TabsList>
-            <TabsTrigger value="audiobooks">Audiobooks</TabsTrigger>
-            <TabsTrigger value="pdfs">PDFs</TabsTrigger>
+            <TabsTrigger value="audiobooks" className="data-[state=active]:bg-primary data-[state=active]:text-white">Audiobooks</TabsTrigger>
+            <TabsTrigger value="pdfs" className="data-[state=active]:bg-accent data-[state=active]:text-white">PDFs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="audiobooks" className="mt-6">
