@@ -30,7 +30,7 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:border-primary/50">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           {item.type === "pdf" ? (
@@ -42,7 +42,7 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
             variant="ghost"
             size="icon"
             onClick={onDelete}
-            className="text-destructive"
+            className="text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -81,7 +81,7 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
               <p>Progress: {item.lastPosition && formatDuration(item.lastPosition)}</p>
             </div>
             {onPlay && (
-              <Button onClick={onPlay} className="w-full gap-2">
+              <Button onClick={onPlay} className="w-full gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg hover:shadow-xl transition-all">
                 <Play className="h-4 w-4" />
                 Play
               </Button>

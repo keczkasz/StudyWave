@@ -10,20 +10,20 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Steel Blue - Primary brand color */
-    --primary: 200 15% 45%;
+    /* Lavender Purple - Primary brand color */
+    --primary: 270 50% 65%;
     --primary-foreground: 0 0% 100%;
     
-    /* Light Steel Blue - Accent */
-    --accent: 200 20% 55%;
-    --accent-foreground: 0 0% 100%;
+    /* Light Purple - Accent */
+    --accent: 280 60% 75%;
+    --accent-foreground: 270 50% 20%;
     
     /* Soft Violet - Secondary */
-    --secondary: 265 20% 96%;
-    --secondary-foreground: 265 85% 25%;
+    --secondary: 270 50% 95%;
+    --secondary-foreground: 270 50% 30%;
     
     /* Progress/Warning */
-    --warning: 200 25% 60%;
+    --warning: 280 50% 70%;
     --warning-foreground: 0 0% 100%;
     
     /* Neutrals - Clean whites and grays */
@@ -51,10 +51,10 @@ All colors MUST be HSL.
     --radius: 0.75rem;
     
     /* Status colors */
-    --status-processing: 200 25% 60%;
+    --status-processing: 270 50% 65%;
     --status-completed: 142 71% 45%;
     --status-failed: 0 84% 60%;
-    --status-pending: 230 10% 65%;
+    --status-pending: 270 30% 75%;
 
     /* Auth page specific - Dark purple theme */
     --auth-bg-start: 270 100% 10%;
@@ -114,5 +114,26 @@ All colors MUST be HSL.
     @apply bg-background text-foreground font-sans;
     font-family: 'Outfit', system-ui, -apple-system, sans-serif;
     letter-spacing: -0.01em;
+    position: relative;
+  }
+  
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.02) 2px,
+        rgba(0, 0, 0, 0.02) 4px
+      );
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.3;
   }
 }
