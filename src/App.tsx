@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Library from "./pages/Library";
 import Player from "./pages/Player";
+import Pricing from "./pages/Pricing";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,8 @@ const App = () => (
           <Route path="/upload" element={<Upload />} />
           <Route path="/library" element={<Library />} />
           <Route path="/player/:audioId" element={<Player />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
