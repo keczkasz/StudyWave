@@ -9,6 +9,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Headphones } from "lucide-react";
 import authBg from "@/assets/auth-bg.png";
+import { z } from "zod";
+
+const signInSchema = z.object({
+  email: z.string().email("Invalid email format").max(255, "Email must be less than 255 characters"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const signUpSchema = z.object({
+  email: z.string().email("Invalid email format").max(255, "Email must be less than 255 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password must be less than 72 characters"),
+  fullName: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email("Invalid email format").max(255, "Email must be less than 255 characters"),
+});
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -31,11 +47,24 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const validation = signInSchema.safeParse({ email, password });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast({
+        title: "Validation Error",
+        description: errors,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: validation.data.email,
+      password: validation.data.password,
     });
 
     if (error) {
@@ -52,15 +81,28 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const validation = signUpSchema.safeParse({ email, password, fullName });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast({
+        title: "Validation Error",
+        description: errors,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: validation.data.email,
+      password: validation.data.password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
-          full_name: fullName,
+          full_name: validation.data.fullName,
         },
       },
     });
@@ -82,9 +124,22 @@ const Auth = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate email
+    const validation = resetPasswordSchema.safeParse({ email: resetEmail });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast({
+        title: "Validation Error",
+        description: errors,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setResetLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+    const { error } = await supabase.auth.resetPasswordForEmail(validation.data.email, {
       redirectTo: `${window.location.origin}/`,
     });
 

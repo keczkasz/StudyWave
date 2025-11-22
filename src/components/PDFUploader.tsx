@@ -21,17 +21,51 @@ const PDFUploader = () => {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      (file) => file.type === "application/pdf"
-    );
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((file) => {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not a PDF file`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds the 50MB size limit`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    });
     setFiles((prev) => [...prev, ...droppedFiles]);
-  }, []);
+  }, [toast]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files).filter(
-        (file) => file.type === "application/pdf"
-      );
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+      const selectedFiles = Array.from(e.target.files).filter((file) => {
+        if (file.type !== "application/pdf") {
+          toast({
+            title: "Invalid file type",
+            description: `${file.name} is not a PDF file`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          toast({
+            title: "File too large",
+            description: `${file.name} exceeds the 50MB size limit`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
       setFiles((prev) => [...prev, ...selectedFiles]);
     }
   };

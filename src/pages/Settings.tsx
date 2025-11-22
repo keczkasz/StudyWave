@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const profileSchema = z.object({
+  fullName: z.string().trim().min(1, "Name cannot be empty").max(100, "Name must be less than 100 characters"),
+});
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -43,10 +48,19 @@ const Settings = () => {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) return;
+    
+    // Validate input
+    const validation = profileSchema.safeParse({ fullName });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast.error(errors);
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName })
+      .update({ full_name: validation.data.fullName })
       .eq("id", user.id);
 
     if (error) {
