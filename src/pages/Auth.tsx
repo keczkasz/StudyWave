@@ -329,9 +329,17 @@ const Auth = () => {
         </div>
         
         {/* Footer */}
-        <p className="text-center text-sm text-white/80 drop-shadow">
-          Start listening to your study materials today
-        </p>
+        <div className="text-center space-y-2">
+          <p className="text-sm text-white/80 drop-shadow">
+            Start listening to your study materials today
+          </p>
+          <button
+            onClick={() => navigate("/terms")}
+            className="text-xs text-white/70 hover:text-white/90 drop-shadow transition-colors underline"
+          >
+            Terms of Service
+          </button>
+        </div>
       </div>
     </div>
   );

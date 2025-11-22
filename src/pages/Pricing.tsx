@@ -166,6 +166,16 @@ const Pricing = () => {
             </Button>{" "}
             or contact support.
           </p>
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            By subscribing, you agree to our{" "}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-normal"
+              onClick={() => navigate("/terms")}
+            >
+              Terms of Service
+            </Button>
+          </p>
         </div>
       </div>
     </>
