@@ -1,11 +1,15 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 
 const Pricing = () => {
   const navigate = useNavigate();
+  const [waitlistEmail, setWaitlistEmail] = useState("");
 
   const plans = [
     {
@@ -35,15 +39,21 @@ const Pricing = () => {
         "Faster text extraction",
         "Advanced OCR processing",
       ],
-      cta: "Subscribe Now",
+      cta: "Sign up for the waiting list",
       disabled: false,
       popular: true,
     },
   ];
 
-  const handleSubscribe = () => {
-    // Will integrate with Stripe after enabling the integration
-    alert("Stripe integration will be enabled next. This will redirect to payment.");
+  const handleWaitlistSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail) {
+      toast.error("Please enter your email address");
+      return;
+    }
+    // TODO: Save to database or send to backend
+    toast.success("Thank you! You've been added to the waiting list.");
+    setWaitlistEmail("");
   };
 
   return (
@@ -93,14 +103,28 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
-                  disabled={plan.disabled}
-                  onClick={handleSubscribe}
-                >
-                  {plan.cta}
-                </Button>
+                {plan.popular ? (
+                  <form onSubmit={handleWaitlistSignup} className="space-y-3">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={waitlistEmail}
+                      onChange={(e) => setWaitlistEmail(e.target.value)}
+                      required
+                    />
+                    <Button type="submit" className="w-full" variant="default">
+                      {plan.cta}
+                    </Button>
+                  </form>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    disabled={plan.disabled}
+                  >
+                    {plan.cta}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
