@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+
+const waitlistSchema = z.object({
+  email: z.string().email("Please enter a valid email address").max(255, "Email must be less than 255 characters"),
+});
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -45,13 +51,31 @@ const Pricing = () => {
     },
   ];
 
-  const handleWaitlistSignup = (e: React.FormEvent) => {
+  const handleWaitlistSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!waitlistEmail) {
-      toast.error("Please enter your email address");
+    
+    // Validate email
+    const validation = waitlistSchema.safeParse({ email: waitlistEmail });
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => e.message).join(", ");
+      toast.error(errors);
       return;
     }
-    // TODO: Save to database or send to backend
+    
+    // Save to database
+    const { error } = await supabase
+      .from("waitlist")
+      .insert({ email: validation.data.email });
+    
+    if (error) {
+      if (error.code === "23505") { // Unique constraint violation
+        toast.error("This email is already on the waiting list");
+      } else {
+        toast.error("Failed to join waiting list. Please try again.");
+      }
+      return;
+    }
+    
     toast.success("Thank you! You've been added to the waiting list.");
     setWaitlistEmail("");
   };
