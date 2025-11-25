@@ -18,36 +18,40 @@ export interface PlaybackState {
 
 export const VOICE_PERSONALITIES: VoicePersonality[] = [
   {
-    id: "scholar",
-    name: "Scholar",
-    description: "Clear and articulate, perfect for academic content",
-    style: "Academic",
-    pitch: 1.0,
-    rate: 1.0,
-  },
-  {
-    id: "narrator",
-    name: "Narrator",
-    description: "Warm and engaging, ideal for storytelling",
-    style: "Narrative",
+    id: "en-male",
+    name: "David",
+    description: "Professional English male voice, clear and authoritative",
+    style: "English (Male)",
     pitch: 0.95,
-    rate: 0.95,
+    rate: 1.0,
+    voiceName: "en-male",
   },
   {
-    id: "calm",
-    name: "Calm",
-    description: "Soothing and relaxed, great for meditation or focus",
-    style: "Relaxing",
-    pitch: 0.9,
-    rate: 0.85,
+    id: "en-female",
+    name: "Emma",
+    description: "Warm English female voice, engaging and friendly",
+    style: "English (Female)",
+    pitch: 1.05,
+    rate: 1.0,
+    voiceName: "en-female",
   },
   {
-    id: "energetic",
-    name: "Energetic",
-    description: "Upbeat and dynamic, keeps you engaged",
-    style: "Dynamic",
-    pitch: 1.1,
-    rate: 1.1,
+    id: "pl-male",
+    name: "Jakub",
+    description: "Profesjonalny polski głos męski, wyraźny i pewny",
+    style: "Polish (Male)",
+    pitch: 0.95,
+    rate: 1.0,
+    voiceName: "pl-male",
+  },
+  {
+    id: "pl-female",
+    name: "Zofia",
+    description: "Ciepły polski głos żeński, przyjazny i naturalny",
+    style: "Polish (Female)",
+    pitch: 1.05,
+    rate: 1.0,
+    voiceName: "pl-female",
   },
 ];
 
@@ -133,15 +137,55 @@ class StudyWaveVoice {
   }
 
   private selectVoice(): SpeechSynthesisVoice | null {
-    // Try to find a high-quality voice based on personality
-    const englishVoices = this.availableVoices.filter(v => v.lang.startsWith('en'));
+    const personalityId = this.currentPersonality.id;
     
-    // Prefer Google voices for better quality
-    const googleVoice = englishVoices.find(v => v.name.includes('Google'));
-    if (googleVoice) return googleVoice;
-
-    // Fallback to any English voice
-    return englishVoices[0] || this.availableVoices[0] || null;
+    // Determine language and gender from personality
+    let targetLang = 'en';
+    let preferFemale = false;
+    
+    if (personalityId.startsWith('pl-')) {
+      targetLang = 'pl';
+      preferFemale = personalityId === 'pl-female';
+    } else if (personalityId.startsWith('en-')) {
+      targetLang = 'en';
+      preferFemale = personalityId === 'en-female';
+    }
+    
+    // Filter voices by language
+    const languageVoices = this.availableVoices.filter(v => 
+      v.lang.startsWith(targetLang)
+    );
+    
+    if (languageVoices.length === 0) {
+      return this.availableVoices[0] || null;
+    }
+    
+    // Try to find gender-appropriate voice based on name patterns
+    const femalePatterns = ['female', 'woman', 'girl', 'zuzanna', 'zofia', 'paulina', 'ewa', 'emma', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'monica', 'nicky'];
+    const malePatterns = ['male', 'man', 'boy', 'jakub', 'jan', 'piotr', 'adam', 'david', 'daniel', 'oliver', 'thomas', 'nathan', 'alex'];
+    
+    const matchingVoices = languageVoices.filter(v => {
+      const nameLower = v.name.toLowerCase();
+      if (preferFemale) {
+        return femalePatterns.some(pattern => nameLower.includes(pattern));
+      } else {
+        return malePatterns.some(pattern => nameLower.includes(pattern));
+      }
+    });
+    
+    if (matchingVoices.length > 0) {
+      // Prefer Google or Microsoft voices for quality
+      const premiumVoice = matchingVoices.find(v => 
+        v.name.includes('Google') || v.name.includes('Microsoft')
+      );
+      return premiumVoice || matchingVoices[0];
+    }
+    
+    // Fallback to any voice in the target language
+    const premiumVoice = languageVoices.find(v => 
+      v.name.includes('Google') || v.name.includes('Microsoft')
+    );
+    return premiumVoice || languageVoices[0];
   }
 
   private emitStateChange() {

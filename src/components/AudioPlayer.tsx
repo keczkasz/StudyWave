@@ -310,10 +310,10 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
               </TooltipTrigger>
               <TooltipContent>Choose Voice</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="w-64 bg-popover">
+            <DropdownMenuContent align="end" className="w-72 bg-popover">
               <DropdownMenuLabel className="flex items-center gap-2">
                 <Waves className="h-4 w-4" />
-                Voice Personalities
+                Voice Selection
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {VOICE_PERSONALITIES.map((personality) => (
@@ -325,9 +325,12 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
                   }`}
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <span className="font-medium">{personality.name}</span>
+                    <div className="flex flex-col flex-1">
+                      <span className="font-medium">{personality.name}</span>
+                      <span className="text-xs text-primary/70">{personality.style}</span>
+                    </div>
                     {selectedPersonality.id === personality.id && (
-                      <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                         Active
                       </span>
                     )}
