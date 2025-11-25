@@ -347,15 +347,6 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
           <WaveformVisualization />
         </div>
 
-        {/* Current Text Display */}
-        {currentText && (
-          <div className="mb-6 p-4 bg-secondary/30 rounded-xl">
-            <p className="text-sm text-muted-foreground italic line-clamp-2 text-center">
-              "{currentText}"
-            </p>
-          </div>
-        )}
-
         {/* Progress Slider */}
         <div className="space-y-3 mb-6">
           <Slider
