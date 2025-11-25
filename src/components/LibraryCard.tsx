@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { FileText, Headphones, Play, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,16 +19,52 @@ interface LibraryCardProps {
   onPlay?: () => void;
 }
 
-const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+// Utility functions moved outside component to prevent recreation
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
 
-  const formatFileSize = (bytes: number) => {
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  };
+const formatFileSize = (bytes: number) => {
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+};
+
+const getStatusClasses = (status: string) => {
+  switch (status) {
+    case "completed":
+      return "bg-green-100 text-green-800";
+    case "processing":
+      return "bg-yellow-100 text-yellow-800";
+    case "failed":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
+// Memoize the component to prevent unnecessary re-renders in lists
+const LibraryCard = memo(({ item, onDelete, onPlay }: LibraryCardProps) => {
+  // Memoize formatted values
+  const formattedFileSize = useMemo(
+    () => item.fileSize && formatFileSize(item.fileSize),
+    [item.fileSize]
+  );
+  
+  const formattedUploadDate = useMemo(
+    () => item.uploadDate && new Date(item.uploadDate).toLocaleDateString(),
+    [item.uploadDate]
+  );
+  
+  const formattedDuration = useMemo(
+    () => item.duration && formatDuration(item.duration),
+    [item.duration]
+  );
+  
+  const formattedLastPosition = useMemo(
+    () => item.lastPosition && formatDuration(item.lastPosition),
+    [item.lastPosition]
+  );
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -52,21 +89,11 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
 
         {item.type === "pdf" && (
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p>Size: {item.fileSize && formatFileSize(item.fileSize)}</p>
-            <p>
-              Uploaded: {item.uploadDate && new Date(item.uploadDate).toLocaleDateString()}
-            </p>
+            <p>Size: {formattedFileSize}</p>
+            <p>Uploaded: {formattedUploadDate}</p>
             {item.status && (
               <span
-                className={`inline-block px-2 py-1 rounded text-xs ${
-                  item.status === "completed"
-                    ? "bg-green-100 text-green-800"
-                    : item.status === "processing"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : item.status === "failed"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-gray-100 text-gray-800"
-                }`}
+                className={`inline-block px-2 py-1 rounded text-xs ${getStatusClasses(item.status)}`}
               >
                 {item.status}
               </span>
@@ -77,8 +104,8 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
         {item.type === "audio" && (
           <>
             <div className="space-y-1 text-sm text-muted-foreground mb-4">
-              <p>Duration: {item.duration && formatDuration(item.duration)}</p>
-              <p>Progress: {item.lastPosition && formatDuration(item.lastPosition)}</p>
+              <p>Duration: {formattedDuration}</p>
+              <p>Progress: {formattedLastPosition}</p>
             </div>
             {onPlay && (
               <Button onClick={onPlay} className="w-full gap-2">
@@ -91,6 +118,8 @@ const LibraryCard = ({ item, onDelete, onPlay }: LibraryCardProps) => {
       </CardContent>
     </Card>
   );
-};
+});
+
+LibraryCard.displayName = "LibraryCard";
 
 export default LibraryCard;
