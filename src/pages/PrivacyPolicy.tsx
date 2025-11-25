@@ -18,7 +18,7 @@ const PrivacyPolicy = () => {
         </Button>
 
         <div className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto">
-          <h1 className="text-4xl sm:text-5xl font-playfair text-foreground mb-6 tracking-tight">Privacy Policy</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-6">Privacy Policy</h1>
           
           <p className="text-muted-foreground mb-6">
             <strong>Last Updated:</strong> January 2025
@@ -187,8 +187,8 @@ const PrivacyPolicy = () => {
 
           <section className="mb-8 p-6 bg-muted/50 rounded-lg border border-border">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Copyright Notice</h2>
-            <p className="text-muted-foreground lowercase">
-              copyright © 2025 dawid konopka. all rights reserved.
+            <p className="text-muted-foreground">
+              Copyright © 2025 Dawid Konopka. All rights reserved. You may NOT copy, modify, distribute, or use this code in any commercial or non-commercial project without explicit written permission from the author.
             </p>
           </section>
         </div>
