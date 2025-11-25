@@ -18,7 +18,7 @@ const TermsOfService = () => {
         </Button>
 
         <div className="prose prose-sm sm:prose dark:prose-invert max-w-none">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-6">Terms of Service</h1>
+          <h1 className="text-4xl sm:text-5xl font-playfair text-foreground mb-6 tracking-tight">Terms of Service</h1>
           
           <div className="space-y-6">
             <section>
@@ -32,11 +32,8 @@ const TermsOfService = () => {
             <section>
               <h2 className="text-2xl font-semibold mb-4">2. License and Copyright</h2>
               <div className="bg-muted p-6 rounded-lg border border-border">
-                <p className="font-semibold mb-2">Copyright © 2025 Dawid Konopka</p>
-                <p className="font-semibold mb-4">All rights reserved.</p>
-                <p className="text-muted-foreground">
-                  You may NOT copy, modify, distribute, or use this code in any commercial or non-commercial 
-                  project without explicit written permission from the author.
+                <p className="text-muted-foreground lowercase">
+                  copyright © 2025 dawid konopka. all rights reserved.
                 </p>
               </div>
             </section>
