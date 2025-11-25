@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import PDFQualityDialog from "@/components/PDFQualityDialog";
 
 const PDFUploader = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -16,6 +17,8 @@ const PDFUploader = () => {
     total: number;
     percentage: number;
   } | null>(null);
+  const [showQualityDialog, setShowQualityDialog] = useState(false);
+  const [currentFileName, setCurrentFileName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -142,6 +145,10 @@ const PDFUploader = () => {
 
           // Check if OCR is needed
           if (needsOCR(extractedText)) {
+            // Show quality dialog for the first OCR file
+            setCurrentFileName(file.name);
+            setShowQualityDialog(true);
+            
             toast({
               title: "Scanned PDF detected",
               description: "Using OCR to extract text...",
@@ -247,6 +254,12 @@ const PDFUploader = () => {
 
   return (
     <div className="space-y-6">
+      <PDFQualityDialog
+        isOpen={showQualityDialog}
+        onClose={() => setShowQualityDialog(false)}
+        fileName={currentFileName}
+      />
+      
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
