@@ -333,12 +333,21 @@ const Auth = () => {
           <p className="text-sm text-white/80 drop-shadow">
             Start listening to your study materials today
           </p>
-          <button
-            onClick={() => navigate("/terms")}
-            className="text-xs text-white/70 hover:text-white/90 drop-shadow transition-colors underline"
-          >
-            Terms of Service
-          </button>
+          <div className="text-xs text-white/70 space-x-2">
+            <button
+              onClick={() => navigate("/terms")}
+              className="hover:text-white/90 drop-shadow transition-colors underline"
+            >
+              Terms of Service
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => navigate("/privacy")}
+              className="hover:text-white/90 drop-shadow transition-colors underline"
+            >
+              Privacy Policy
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ export type Database = {
           last_position_seconds: number | null
           pdf_id: string
           playback_speed: number | null
+          total_listened_seconds: number | null
           user_id: string
         }
         Insert: {
@@ -35,6 +36,7 @@ export type Database = {
           last_position_seconds?: number | null
           pdf_id: string
           playback_speed?: number | null
+          total_listened_seconds?: number | null
           user_id: string
         }
         Update: {
@@ -46,6 +48,7 @@ export type Database = {
           last_position_seconds?: number | null
           pdf_id?: string
           playback_speed?: number | null
+          total_listened_seconds?: number | null
           user_id?: string
         }
         Relationships: [

@@ -175,6 +175,14 @@ const Pricing = () => {
             >
               Terms of Service
             </Button>
+            {" "}and{" "}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-normal"
+              onClick={() => navigate("/privacy")}
+            >
+              Privacy Policy
+            </Button>
           </p>
         </div>
       </div>

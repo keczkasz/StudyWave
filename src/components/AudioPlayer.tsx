@@ -17,6 +17,8 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
   const [playbackSpeed, setPlaybackSpeed] = useState(audioData.playback_speed || 1.0);
   const { toast } = useToast();
   const saveIntervalRef = useRef<NodeJS.Timeout>();
+  const lastSaveTimeRef = useRef<number>(currentTime);
+  const playStartTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     if (!ttsService.isSupported()) {
@@ -54,20 +56,33 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
   }, [isPlaying]);
 
   const saveProgress = async () => {
+    // Calculate actual time listened since last save
+    const timeListened = Math.max(0, currentTime - lastSaveTimeRef.current);
+    const currentTotalListened = audioData.total_listened_seconds || 0;
+    
     await supabase
       .from("audio_files")
       .update({
         last_position_seconds: currentTime,
         playback_speed: playbackSpeed,
+        total_listened_seconds: currentTotalListened + Math.floor(timeListened),
       })
       .eq("id", audioData.id);
+    
+    // Update reference for next save
+    lastSaveTimeRef.current = currentTime;
+    audioData.total_listened_seconds = currentTotalListened + Math.floor(timeListened);
   };
 
   const togglePlayPause = () => {
     if (isPlaying) {
       ttsService.pause();
       setIsPlaying(false);
+      saveProgress(); // Save when pausing
     } else {
+      // Reset tracking references when starting playback
+      lastSaveTimeRef.current = currentTime;
+      playStartTimeRef.current = Date.now();
       if (!audioData.extracted_text) {
         toast({
           title: "No text available",

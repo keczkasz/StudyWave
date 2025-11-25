@@ -46,10 +46,11 @@ const Dashboard = () => {
 
     const { data: audiobooks } = await supabase
       .from("audio_files")
-      .select("duration_seconds")
+      .select("total_listened_seconds")
       .eq("user_id", userId);
 
-    const totalTime = audiobooks?.reduce((sum, a) => sum + (a.duration_seconds || 0), 0) || 0;
+    // Sum actual listening time, not total duration
+    const totalTime = audiobooks?.reduce((sum, a) => sum + (a.total_listened_seconds || 0), 0) || 0;
 
     setStats({
       totalPDFs: pdfs?.length || 0,
