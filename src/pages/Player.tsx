@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import AudioPlayer from "@/components/AudioPlayer";
 import { Headphones } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const Player = () => {
   const { audioId } = useParams();
@@ -52,24 +53,26 @@ const Player = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary to-accent mb-6">
-            <Headphones className="h-16 w-16 text-white" />
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary to-accent mb-6">
+              <Headphones className="h-16 w-16 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">
+              {audioData.pdf_documents?.title || "Untitled"}
+            </h1>
+            <p className="text-muted-foreground">
+              {audioData.pdf_documents?.original_filename}
+            </p>
           </div>
-          <h1 className="text-3xl font-bold mb-2">
-            {audioData.pdf_documents?.title || "Untitled"}
-          </h1>
-          <p className="text-muted-foreground">
-            {audioData.pdf_documents?.original_filename}
-          </p>
-        </div>
 
-        <AudioPlayer audioData={audioData} />
+          <AudioPlayer audioData={audioData} />
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
