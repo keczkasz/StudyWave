@@ -52,7 +52,10 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
   const [selectedPersonality, setSelectedPersonality] = useState<VoicePersonality>(VOICE_PERSONALITIES[0]);
   const [currentText, setCurrentText] = useState<string>("");
   const [isVoiceReady, setIsVoiceReady] = useState(false);
-  const [showWaveform, setShowWaveform] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const playbackStartTimeRef = useRef<number>(0);
+  const actualPlaybackTimeRef = useRef<number>(0);
   
   const { toast } = useToast();
   const saveIntervalRef = useRef<NodeJS.Timeout>();
@@ -69,9 +72,8 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
     playbackSpeedRef.current = playbackSpeed;
   }, [playbackSpeed]);
 
-  // Save progress function using refs to avoid stale closures
+  // Save progress function using actual playback time
   const saveProgress = useCallback(async () => {
-    const timeListened = Math.max(0, currentTimeRef.current - lastSaveTimeRef.current);
     const currentTotalListened = audioData.total_listened_seconds || 0;
     
     await supabase
@@ -79,12 +81,12 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
       .update({
         last_position_seconds: currentTimeRef.current,
         playback_speed: playbackSpeedRef.current,
-        total_listened_seconds: currentTotalListened + Math.floor(timeListened),
+        total_listened_seconds: currentTotalListened + Math.floor(actualPlaybackTimeRef.current),
       })
       .eq("id", audioData.id);
     
-    lastSaveTimeRef.current = currentTimeRef.current;
-    audioData.total_listened_seconds = currentTotalListened + Math.floor(timeListened);
+    audioData.total_listened_seconds = currentTotalListened + Math.floor(actualPlaybackTimeRef.current);
+    actualPlaybackTimeRef.current = 0; // Reset after save
   }, [audioData]);
 
   // Initialize StudyWaveVoice
@@ -117,12 +119,15 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
         setCurrentTime(state.currentTime);
         setDuration(state.totalTime);
         setCurrentText(state.currentText);
-        setShowWaveform(state.isPlaying && !state.isPaused);
       },
       onComplete: () => {
         setIsPlaying(false);
         setIsPaused(false);
-        setShowWaveform(false);
+        // Save playback time on completion
+        if (playbackStartTimeRef.current > 0) {
+          actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+          playbackStartTimeRef.current = 0;
+        }
         saveProgress();
       },
       onError: (error) => {
@@ -135,8 +140,14 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
       },
       onVoicesLoaded: () => {
         setIsVoiceReady(true);
+        setAvailableVoices(studyWaveVoice.getAvailableVoices());
       },
     });
+
+    // Load voices if already available
+    if (studyWaveVoice.isSupported()) {
+      setAvailableVoices(studyWaveVoice.getAvailableVoices());
+    }
 
     return () => {
       studyWaveVoice.stop();
@@ -146,13 +157,26 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
     };
   }, [saveProgress, toast]);
 
-  // Auto-save progress
+  // Track actual playback time
   useEffect(() => {
     if (isPlaying && !isPaused) {
+      playbackStartTimeRef.current = Date.now();
+      
       saveIntervalRef.current = setInterval(() => {
+        // Add elapsed time since last save
+        if (playbackStartTimeRef.current > 0) {
+          actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+          playbackStartTimeRef.current = Date.now();
+        }
         saveProgress();
       }, 10000);
     } else {
+      // Save elapsed time when pausing
+      if (playbackStartTimeRef.current > 0) {
+        actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+        playbackStartTimeRef.current = 0;
+      }
+      
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
       }
@@ -192,12 +216,14 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
       }
     } else {
       // Reset tracking references when starting playback
-      lastSaveTimeRef.current = currentTime;
+      actualPlaybackTimeRef.current = 0;
+      playbackStartTimeRef.current = Date.now();
       const startPosition = duration > 0 ? currentTime / duration : 0;
       studyWaveVoice.setRate(playbackSpeed);
       studyWaveVoice.speak({
         text: audioData.extracted_text,
         startPosition,
+        autoDetectLanguage: true, // Enable auto language detection
       });
     }
   }, [audioData.extracted_text, isPlaying, isPaused, isVoiceReady, currentTime, duration, playbackSpeed, toast]);
@@ -225,6 +251,7 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
 
   const handlePersonalityChange = (personality: VoicePersonality) => {
     setSelectedPersonality(personality);
+    setSelectedVoice(null);
     studyWaveVoice.setPersonality(personality.id);
     localStorage.setItem('studywave-voice-personality', personality.id);
     
@@ -242,6 +269,32 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
           studyWaveVoice.speak({
             text: audioData.extracted_text,
             startPosition: currentPosition,
+            autoDetectLanguage: false, // Don't auto-detect when manually changing
+          });
+        }
+      }, 100);
+    }
+  };
+
+  const handleVoiceChange = (voice: SpeechSynthesisVoice) => {
+    setSelectedVoice(voice);
+    studyWaveVoice.setVoiceDirectly(voice);
+    
+    toast({
+      title: `Voice changed to ${voice.name}`,
+      description: `Using ${voice.lang} voice`,
+    });
+    
+    // If playing, restart with new voice
+    if (isPlaying) {
+      const currentPosition = duration > 0 ? currentTime / duration : 0;
+      studyWaveVoice.stop();
+      setTimeout(() => {
+        if (audioData.extracted_text) {
+          studyWaveVoice.speak({
+            text: audioData.extracted_text,
+            startPosition: currentPosition,
+            autoDetectLanguage: false,
           });
         }
       }, 100);
@@ -252,30 +305,6 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // Animated waveform visualization
-  const WaveformVisualization = () => {
-    const bars = 32;
-    return (
-      <div className="flex items-center justify-center gap-[2px] h-12 overflow-hidden">
-        {Array.from({ length: bars }).map((_, i) => (
-          <div
-            key={i}
-            className={`w-1 bg-gradient-to-t from-primary to-primary/50 rounded-full transition-all duration-75 ${
-              showWaveform ? 'animate-pulse' : ''
-            }`}
-            style={{
-              height: showWaveform 
-                ? `${Math.random() * 80 + 20}%`
-                : '20%',
-              animationDelay: `${i * 30}ms`,
-              opacity: showWaveform ? 1 : 0.3,
-            }}
-          />
-        ))}
-      </div>
-    );
   };
 
   return (
@@ -293,7 +322,9 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
             <div>
               <p className="text-sm font-medium text-foreground">StudyWave Voice</p>
               <p className="text-xs text-muted-foreground">
-                {isVoiceReady ? `${selectedPersonality.name} • ${selectedPersonality.style}` : 'Initializing...'}
+                {isVoiceReady 
+                  ? (selectedVoice ? selectedVoice.name : `${selectedPersonality.name} • ${selectedPersonality.style}`) 
+                  : 'Initializing...'}
               </p>
             </div>
           </div>
@@ -310,18 +341,23 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
               </TooltipTrigger>
               <TooltipContent>Choose Voice</TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="w-72 bg-popover">
+            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto bg-popover">
               <DropdownMenuLabel className="flex items-center gap-2">
                 <Waves className="h-4 w-4" />
                 Voice Selection
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              
+              {/* Preset Personalities */}
+              <div className="px-2 py-1">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Preset Voices</p>
+              </div>
               {VOICE_PERSONALITIES.map((personality) => (
                 <DropdownMenuItem
                   key={personality.id}
                   onClick={() => handlePersonalityChange(personality)}
                   className={`flex flex-col items-start gap-1 py-3 cursor-pointer ${
-                    selectedPersonality.id === personality.id ? 'bg-primary/10' : ''
+                    !selectedVoice && selectedPersonality.id === personality.id ? 'bg-primary/10' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2 w-full">
@@ -329,7 +365,7 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
                       <span className="font-medium">{personality.name}</span>
                       <span className="text-xs text-primary/70">{personality.style}</span>
                     </div>
-                    {selectedPersonality.id === personality.id && (
+                    {!selectedVoice && selectedPersonality.id === personality.id && (
                       <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                         Active
                       </span>
@@ -338,13 +374,37 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
                   <span className="text-xs text-muted-foreground">{personality.description}</span>
                 </DropdownMenuItem>
               ))}
+              
+              {/* All Available Voices */}
+              {availableVoices.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">All Available Voices</p>
+                  </div>
+                  {availableVoices.map((voice, idx) => (
+                    <DropdownMenuItem
+                      key={`${voice.name}-${idx}`}
+                      onClick={() => handleVoiceChange(voice)}
+                      className={`flex items-center justify-between py-2 cursor-pointer ${
+                        selectedVoice?.name === voice.name ? 'bg-primary/10' : ''
+                      }`}
+                    >
+                      <div className="flex flex-col flex-1">
+                        <span className="text-sm font-medium">{voice.name}</span>
+                        <span className="text-xs text-muted-foreground">{voice.lang}</span>
+                      </div>
+                      {selectedVoice?.name === voice.name && (
+                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-
-        {/* Waveform Visualization */}
-        <div className="h-16 mb-6 bg-secondary/30 rounded-xl flex items-center justify-center overflow-hidden">
-          <WaveformVisualization />
         </div>
 
         {/* Progress Slider */}

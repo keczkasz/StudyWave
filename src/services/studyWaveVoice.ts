@@ -62,6 +62,29 @@ interface StudyWaveCallbacks {
   onVoicesLoaded?: () => void;
 }
 
+// Language detection helper
+function detectLanguage(text: string): 'en' | 'pl' {
+  const polishChars = /[ąćęłńóśźż]/i;
+  const polishWords = /\b(i|w|z|na|do|się|jest|to|co|jak|ale|nie|od|po|za|bez|pod|przez)\b/gi;
+  
+  // Check for Polish characters (strong indicator)
+  if (polishChars.test(text)) {
+    return 'pl';
+  }
+  
+  // Count Polish common words in first 1000 chars
+  const sample = text.substring(0, 1000);
+  const polishMatches = (sample.match(polishWords) || []).length;
+  
+  // If more than 15% of words are common Polish words, likely Polish
+  const words = sample.split(/\s+/).length;
+  if (polishMatches / words > 0.15) {
+    return 'pl';
+  }
+  
+  return 'en';
+}
+
 class StudyWaveVoice {
   private synthesis: SpeechSynthesis | null = null;
   private utterance: SpeechSynthesisUtterance | null = null;
@@ -250,6 +273,7 @@ class StudyWaveVoice {
   speak(options: {
     text: string;
     startPosition?: number;
+    autoDetectLanguage?: boolean;
   }) {
     if (!this.synthesis) {
       if (this.callbacks.onError) {
@@ -262,6 +286,22 @@ class StudyWaveVoice {
     this.isPaused = false;
     this.isPlaying = true;
 
+    // Auto-detect language if enabled
+    if (options.autoDetectLanguage !== false) {
+      const detectedLang = detectLanguage(this.text);
+      const currentLang = this.currentPersonality.id.startsWith('pl-') ? 'pl' : 'en';
+      
+      // Auto-switch to detected language if different
+      if (detectedLang !== currentLang) {
+        const targetPersonality = VOICE_PERSONALITIES.find(p => 
+          p.id.startsWith(detectedLang)
+        );
+        if (targetPersonality) {
+          this.currentPersonality = targetPersonality;
+        }
+      }
+    }
+
     this.chunks = this.splitIntoChunks(this.text);
     
     const totalDuration = this.estimateDuration(this.text, this.currentRate);
@@ -271,6 +311,32 @@ class StudyWaveVoice {
     this.startTime = Date.now();
     this.pausedTime = 0;
     this.speakNextChunk();
+  }
+
+  // Get all available voices for user selection
+  getAvailableVoices(): SpeechSynthesisVoice[] {
+    return this.availableVoices;
+  }
+
+  // Set voice directly by voice object
+  setVoiceDirectly(voice: SpeechSynthesisVoice) {
+    // Find or create a personality for this voice
+    const lang = voice.lang.startsWith('pl') ? 'pl' : 'en';
+    const gender = this.detectGenderFromVoiceName(voice.name);
+    const personalityId = `${lang}-${gender}`;
+    
+    const personality = VOICE_PERSONALITIES.find(p => p.id === personalityId) || VOICE_PERSONALITIES[0];
+    this.currentPersonality = { ...personality, voiceName: voice.name };
+  }
+
+  private detectGenderFromVoiceName(name: string): 'male' | 'female' {
+    const nameLower = name.toLowerCase();
+    const femalePatterns = ['female', 'woman', 'girl', 'zuzanna', 'zofia', 'paulina', 'ewa', 'emma', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'monica', 'nicky'];
+    
+    if (femalePatterns.some(pattern => nameLower.includes(pattern))) {
+      return 'female';
+    }
+    return 'male';
   }
 
   pause() {
