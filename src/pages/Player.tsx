@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import Navigation from "@/components/Navigation";
 import AudioPlayer from "@/components/AudioPlayer";
 import SurfGame from "@/components/SurfGame";
-import { Headphones, Gamepad2, ChevronDown, ChevronUp } from "lucide-react";
+import SurfRunner2 from "@/components/SurfRunner2";
+import { Headphones, Gamepad2, ChevronDown, ChevronUp, Waves, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -12,6 +13,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AudioData {
   id: string;
@@ -30,6 +32,7 @@ const Player = () => {
   const [audioData, setAudioData] = useState<AudioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [gameOpen, setGameOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<"surf1" | "surf2">("surf1");
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -99,16 +102,16 @@ const Player = () => {
             <CollapsibleTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full flex items-center justify-between gap-2 py-4 sm:py-6 border-dashed hover:border-primary hover:bg-primary/5"
+                className="w-full flex items-center justify-between gap-2 py-4 sm:py-6 border-dashed hover:border-orange-500 hover:bg-orange-500/5"
               >
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500">
+                  <div className="p-2 rounded-full bg-gradient-to-r from-orange-500 to-pink-500">
                     <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-sm sm:text-base">🏄 Surf Runner</p>
+                    <p className="font-semibold text-sm sm:text-base">🏄 Surf Games</p>
                     <p className="text-xs text-muted-foreground hidden sm:block">
-                      Play while you listen - avoid rocks and seagulls!
+                      Play while you listen - two games to choose from!
                     </p>
                   </div>
                 </div>
@@ -120,13 +123,38 @@ const Player = () => {
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3 sm:mt-4">
-              <SurfGame />
+              <Tabs value={selectedGame} onValueChange={(v) => setSelectedGame(v as "surf1" | "surf2")} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4 h-auto p-1">
+                  <TabsTrigger 
+                    value="surf1" 
+                    className="flex items-center gap-1.5 py-2 text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
+                  >
+                    <Waves className="h-3.5 w-3.5" />
+                    <span>Surf Runner</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="surf2"
+                    className="flex items-center gap-1.5 py-2 text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5 rotate-[-90deg]" />
+                    <span>Surf Runner 2</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="surf1" className="mt-0">
+                  <SurfGame />
+                </TabsContent>
+
+                <TabsContent value="surf2" className="mt-0">
+                  <SurfRunner2 />
+                </TabsContent>
+              </Tabs>
             </CollapsibleContent>
           </Collapsible>
 
           {/* Game tip for mobile */}
           <p className="text-center text-xs text-muted-foreground mt-4 px-4 sm:hidden">
-            Tip: Play the game while your audiobook reads to you!
+            Tip: Play games while your audiobook reads to you!
           </p>
         </div>
       </div>

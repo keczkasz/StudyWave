@@ -12,11 +12,10 @@ interface GameState {
 interface Surfer {
   x: number;
   y: number;
-  baseY: number;
+  targetY: number;
   width: number;
   height: number;
-  velocityY: number;
-  isJumping: boolean;
+  lane: number; // 0 = top, 1 = middle, 2 = bottom
   isDucking: boolean;
 }
 
@@ -25,28 +24,44 @@ interface Obstacle {
   y: number;
   width: number;
   height: number;
-  type: "rock" | "seagull";
+  type: "rock" | "seagull" | "barrel";
+  lane: number;
   passed: boolean;
 }
 
-interface Wave {
-  x: number;
-  amplitude: number;
-  frequency: number;
-  speed: number;
-}
+// Low-poly color palette - sunset surf vibes
+const COLORS = {
+  sky1: "#ff6b35",      // Warm orange
+  sky2: "#f7931e",      // Golden orange
+  sky3: "#ffb347",      // Peach
+  sky4: "#87ceeb",      // Light blue at horizon
+  water1: "#1a5276",    // Deep teal
+  water2: "#2980b9",    // Ocean blue
+  water3: "#5dade2",    // Light ocean
+  foam: "#ecf0f1",      // White foam
+  sun: "#fff176",       // Bright yellow
+  sunGlow: "#ffcc02",   // Sun glow
+  rock: "#5d4e37",      // Brown rock
+  rockLight: "#8b7355", // Light rock
+  surfer: "#ffd5b4",    // Skin
+  board: "#e74c3c",     // Red board
+  boardStripe: "#f39c12", // Yellow stripe
+  shirt: "#3498db",     // Blue shirt
+  shorts: "#27ae60",    // Green shorts
+};
 
-const GRAVITY = 0.6;
-const JUMP_FORCE = -14;
-const GAME_SPEED_INITIAL = 5;
-const GAME_SPEED_INCREMENT = 0.001;
-const OBSTACLE_SPAWN_RATE = 0.015;
+const GAME_SPEED_INITIAL = 6;
+const GAME_SPEED_INCREMENT = 0.002;
+const OBSTACLE_SPAWN_RATE = 0.008; // Lower spawn rate for easier gameplay
+const MIN_OBSTACLE_GAP = 180; // Minimum gap between obstacles
+const LANE_COUNT = 3;
+const MOVE_SPEED = 8;
 
 const SurfGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameLoopRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
+  const lastObstacleXRef = useRef<number>(0);
   
   const [gameState, setGameState] = useState<GameState>({
     isPlaying: false,
@@ -59,21 +74,26 @@ const SurfGame = () => {
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 300 });
   
   const surferRef = useRef<Surfer>({
-    x: 80,
-    y: 200,
-    baseY: 200,
-    width: 40,
-    height: 60,
-    velocityY: 0,
-    isJumping: false,
+    x: 100,
+    y: 150,
+    targetY: 150,
+    width: 36,
+    height: 50,
+    lane: 1,
     isDucking: false,
   });
   
   const obstaclesRef = useRef<Obstacle[]>([]);
-  const wavesRef = useRef<Wave[]>([]);
   const gameSpeedRef = useRef(GAME_SPEED_INITIAL);
   const scoreRef = useRef(0);
   const frameCountRef = useRef(0);
+  const keysRef = useRef<Set<string>>(new Set());
+
+  // Get lane Y position
+  const getLaneY = useCallback((lane: number, height: number) => {
+    const laneHeight = height / LANE_COUNT;
+    return laneHeight * lane + laneHeight / 2;
+  }, []);
 
   // Resize handler
   useEffect(() => {
@@ -82,7 +102,7 @@ const SurfGame = () => {
         const containerWidth = containerRef.current.clientWidth;
         const isMobile = window.innerWidth < 768;
         const width = Math.min(containerWidth - 16, 900);
-        const height = isMobile ? Math.min(220, window.innerHeight * 0.25) : 280;
+        const height = isMobile ? Math.min(240, window.innerHeight * 0.3) : 300;
         setCanvasSize({ width, height });
       }
     };
@@ -92,34 +112,24 @@ const SurfGame = () => {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Initialize waves
-  const initializeWaves = useCallback(() => {
-    wavesRef.current = [
-      { x: 0, amplitude: 8, frequency: 0.02, speed: 2 },
-      { x: 50, amplitude: 6, frequency: 0.015, speed: 1.5 },
-      { x: 100, amplitude: 10, frequency: 0.025, speed: 2.5 },
-    ];
-  }, []);
-
   // Reset game
   const resetGame = useCallback(() => {
-    const baseY = canvasSize.height - 80;
+    const centerY = getLaneY(1, canvasSize.height);
     surferRef.current = {
-      x: 80,
-      y: baseY,
-      baseY: baseY,
-      width: 40,
-      height: 60,
-      velocityY: 0,
-      isJumping: false,
+      x: 100,
+      y: centerY,
+      targetY: centerY,
+      width: 36,
+      height: 50,
+      lane: 1,
       isDucking: false,
     };
     obstaclesRef.current = [];
     gameSpeedRef.current = GAME_SPEED_INITIAL;
     scoreRef.current = 0;
     frameCountRef.current = 0;
-    initializeWaves();
-  }, [canvasSize.height, initializeWaves]);
+    lastObstacleXRef.current = canvasSize.width + 200;
+  }, [canvasSize.height, canvasSize.width, getLaneY]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -132,7 +142,7 @@ const SurfGame = () => {
     }));
   }, [resetGame]);
 
-  // Play sound effects - defined before jump/duck so it can be used in their dependencies
+  // Play sound effects
   const playSound = useCallback((type: "jump" | "hit" | "score") => {
     if (!soundEnabled) return;
     
@@ -146,81 +156,92 @@ const SurfGame = () => {
       gainNode.connect(audioContext.destination);
       
       if (type === "jump") {
-        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(600, audioContext.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(500, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.08);
+        gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
         oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.1);
+        oscillator.stop(audioContext.currentTime + 0.08);
       } else if (type === "hit") {
-        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.3);
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.3);
-      } else if (type === "score") {
-        oscillator.frequency.setValueAtTime(523, audioContext.currentTime);
-        oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
         oscillator.start();
         oscillator.stop(audioContext.currentTime + 0.2);
+      } else if (type === "score") {
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.08);
+        gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.15);
       }
-    } catch (e) {
+    } catch {
       // Audio context not available
     }
   }, [soundEnabled]);
 
-  // Handle jump
-  const jump = useCallback(() => {
+  // Handle movement
+  const moveUp = useCallback(() => {
     const surfer = surferRef.current;
-    if (!surfer.isJumping && !surfer.isDucking) {
-      surfer.velocityY = JUMP_FORCE;
-      surfer.isJumping = true;
-      if (soundEnabled) {
-        playSound("jump");
-      }
+    if (surfer.lane > 0) {
+      surfer.lane--;
+      surfer.targetY = getLaneY(surfer.lane, canvasSize.height);
+      playSound("jump");
     }
-  }, [soundEnabled, playSound]);
+  }, [canvasSize.height, getLaneY, playSound]);
 
-  // Handle duck
-  const duck = useCallback((isDucking: boolean) => {
+  const moveDown = useCallback(() => {
     const surfer = surferRef.current;
-    if (!surfer.isJumping) {
-      surfer.isDucking = isDucking;
-      surfer.height = isDucking ? 35 : 60;
-      if (isDucking) {
-        surfer.y = surfer.baseY + 25;
-      } else {
-        surfer.y = surfer.baseY;
-      }
+    if (surfer.lane < LANE_COUNT - 1) {
+      surfer.lane++;
+      surfer.targetY = getLaneY(surfer.lane, canvasSize.height);
+      playSound("jump");
+    }
+  }, [canvasSize.height, getLaneY, playSound]);
+
+  const setDucking = useCallback((isDucking: boolean) => {
+    surferRef.current.isDucking = isDucking;
+    if (isDucking) {
+      surferRef.current.height = 30;
+    } else {
+      surferRef.current.height = 50;
     }
   }, []);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      keysRef.current.add(e.code);
+      
       if (!gameState.isPlaying) {
-        if (e.code === "Space" || e.code === "ArrowUp") {
+        if (e.code === "Space" || e.code === "ArrowUp" || e.code === "ArrowDown") {
           e.preventDefault();
           startGame();
         }
         return;
       }
 
-      if (e.code === "Space" || e.code === "ArrowUp") {
+      if (e.code === "ArrowUp") {
         e.preventDefault();
-        jump();
+        moveUp();
       } else if (e.code === "ArrowDown") {
         e.preventDefault();
-        duck(true);
+        if (!surferRef.current.isDucking) {
+          moveDown();
+        }
+        setDucking(true);
+      } else if (e.code === "Space") {
+        e.preventDefault();
+        moveUp();
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      keysRef.current.delete(e.code);
       if (e.code === "ArrowDown") {
-        duck(false);
+        setDucking(false);
       }
     };
 
@@ -230,7 +251,7 @@ const SurfGame = () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [gameState.isPlaying, jump, duck, startGame]);
+  }, [gameState.isPlaying, moveUp, moveDown, setDucking, startGame]);
 
   // Touch controls
   useEffect(() => {
@@ -247,8 +268,6 @@ const SurfGame = () => {
         startGame();
         return;
       }
-      
-      jump();
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -258,14 +277,20 @@ const SurfGame = () => {
       const touchCurrentY = e.touches[0].clientY;
       const deltaY = touchCurrentY - touchStartY;
       
-      if (deltaY > 30) {
-        duck(true);
+      if (Math.abs(deltaY) > 20) {
+        if (deltaY < 0) {
+          moveUp();
+        } else {
+          moveDown();
+          setDucking(true);
+        }
+        touchStartY = touchCurrentY;
       }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
       e.preventDefault();
-      duck(false);
+      setDucking(false);
     };
 
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -277,304 +302,250 @@ const SurfGame = () => {
       canvas.removeEventListener("touchmove", handleTouchMove);
       canvas.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [gameState.isPlaying, jump, duck, startGame]);
+  }, [gameState.isPlaying, moveUp, moveDown, setDucking, startGame]);
 
-  // Draw surfer
-  const drawSurfer = useCallback((ctx: CanvasRenderingContext2D, surfer: Surfer, time: number) => {
-    ctx.save();
-    
-    // Add wave motion when not jumping
-    const waveOffset = surfer.isJumping ? 0 : Math.sin(time * 0.005) * 3;
-    const drawY = surfer.y + waveOffset;
-    
-    // Surfboard
-    ctx.fillStyle = "#f4a460";
-    ctx.strokeStyle = "#8b4513";
-    ctx.lineWidth = 2;
-    
-    const boardWidth = surfer.width + 20;
-    const boardHeight = 8;
-    const boardY = drawY + surfer.height - 5;
-    
-    ctx.beginPath();
-    ctx.ellipse(surfer.x + surfer.width / 2, boardY, boardWidth / 2, boardHeight / 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Board stripe
-    ctx.fillStyle = "#ff6b35";
-    ctx.beginPath();
-    ctx.ellipse(surfer.x + surfer.width / 2, boardY, boardWidth / 3, boardHeight / 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Body
-    const bodyHeight = surfer.isDucking ? surfer.height * 0.6 : surfer.height * 0.7;
-    const bodyY = surfer.isDucking ? drawY + 15 : drawY;
-    
-    // Legs
-    ctx.fillStyle = "#4a90d9";
-    ctx.beginPath();
-    ctx.roundRect(surfer.x + 8, bodyY + bodyHeight - 25, 10, 25, 3);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.roundRect(surfer.x + 22, bodyY + bodyHeight - 25, 10, 25, 3);
-    ctx.fill();
-    
-    // Torso
-    ctx.fillStyle = "#ff6b6b";
-    ctx.beginPath();
-    ctx.roundRect(surfer.x + 5, bodyY + 15, 30, bodyHeight - 40, 5);
-    ctx.fill();
-    
-    // Arms
-    ctx.fillStyle = "#ffd5b4";
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = "#ffd5b4";
-    ctx.lineCap = "round";
-    
-    // Left arm
-    ctx.beginPath();
-    ctx.moveTo(surfer.x + 10, bodyY + 25);
-    if (surfer.isDucking) {
-      ctx.lineTo(surfer.x - 5, bodyY + 35);
-    } else if (surfer.isJumping) {
-      ctx.lineTo(surfer.x - 10, bodyY + 10);
-    } else {
-      ctx.lineTo(surfer.x - 5, bodyY + 30 + Math.sin(time * 0.01) * 5);
-    }
-    ctx.stroke();
-    
-    // Right arm
-    ctx.beginPath();
-    ctx.moveTo(surfer.x + 30, bodyY + 25);
-    if (surfer.isDucking) {
-      ctx.lineTo(surfer.x + 45, bodyY + 35);
-    } else if (surfer.isJumping) {
-      ctx.lineTo(surfer.x + 50, bodyY + 10);
-    } else {
-      ctx.lineTo(surfer.x + 45, bodyY + 30 + Math.sin(time * 0.01 + 1) * 5);
-    }
-    ctx.stroke();
-    
-    // Head
-    ctx.fillStyle = "#ffd5b4";
-    ctx.beginPath();
-    ctx.arc(surfer.x + surfer.width / 2, bodyY + 10, 12, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Hair
-    ctx.fillStyle = "#4a3728";
-    ctx.beginPath();
-    ctx.arc(surfer.x + surfer.width / 2, bodyY + 5, 12, Math.PI, Math.PI * 2);
-    ctx.fill();
-    
-    // Face
-    ctx.fillStyle = "#333";
-    ctx.beginPath();
-    ctx.arc(surfer.x + surfer.width / 2 + 4, bodyY + 8, 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Smile
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(surfer.x + surfer.width / 2 + 2, bodyY + 12, 4, 0, Math.PI);
-    ctx.stroke();
-    
-    ctx.restore();
+  // Draw pixelated rectangle helper
+  const drawPixelRect = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
   }, []);
 
-  // Draw rock obstacle
-  const drawRock = useCallback((ctx: CanvasRenderingContext2D, obstacle: Obstacle) => {
-    ctx.save();
-    
-    // Main rock body
-    const gradient = ctx.createLinearGradient(
-      obstacle.x, obstacle.y,
-      obstacle.x + obstacle.width, obstacle.y + obstacle.height
-    );
-    gradient.addColorStop(0, "#6b7280");
-    gradient.addColorStop(0.5, "#4b5563");
-    gradient.addColorStop(1, "#374151");
-    
+  // Draw low-poly background
+  const drawBackground = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
+    // Sky gradient - sunset colors
+    const gradient = ctx.createLinearGradient(0, 0, 0, height * 0.5);
+    gradient.addColorStop(0, COLORS.sky1);
+    gradient.addColorStop(0.3, COLORS.sky2);
+    gradient.addColorStop(0.6, COLORS.sky3);
+    gradient.addColorStop(1, COLORS.sky4);
     ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height * 0.5);
+
+    // Pixelated sun
+    const sunX = width - 100;
+    const sunY = 50;
+    ctx.fillStyle = COLORS.sunGlow;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + time * 0.001;
+      const rayLength = 45 + Math.sin(time * 0.02 + i) * 5;
+      ctx.fillRect(
+        sunX + Math.cos(angle) * 30 - 3,
+        sunY + Math.sin(angle) * 30 - 3,
+        6,
+        rayLength - 25
+      );
+    }
+    ctx.fillStyle = COLORS.sun;
     ctx.beginPath();
-    ctx.moveTo(obstacle.x, obstacle.y + obstacle.height);
-    ctx.lineTo(obstacle.x + obstacle.width * 0.2, obstacle.y + obstacle.height * 0.3);
-    ctx.lineTo(obstacle.x + obstacle.width * 0.5, obstacle.y);
-    ctx.lineTo(obstacle.x + obstacle.width * 0.8, obstacle.y + obstacle.height * 0.4);
-    ctx.lineTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height);
+    ctx.arc(sunX, sunY, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ocean - layered waves
+    const waterTop = height * 0.35;
+    
+    // Back wave layer
+    ctx.fillStyle = COLORS.water1;
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    for (let x = 0; x <= width; x += 20) {
+      const y = waterTop + 20 + Math.sin((x + time * 1.5) * 0.015) * 15;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(width, height);
     ctx.closePath();
     ctx.fill();
-    
-    // Rock texture
-    ctx.strokeStyle = "#9ca3af";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(obstacle.x + obstacle.width * 0.3, obstacle.y + obstacle.height * 0.5);
-    ctx.lineTo(obstacle.x + obstacle.width * 0.4, obstacle.y + obstacle.height * 0.7);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(obstacle.x + obstacle.width * 0.6, obstacle.y + obstacle.height * 0.3);
-    ctx.lineTo(obstacle.x + obstacle.width * 0.7, obstacle.y + obstacle.height * 0.6);
-    ctx.stroke();
-    
-    // Water splash around rock
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.beginPath();
-    ctx.ellipse(
-      obstacle.x + obstacle.width * 0.5,
-      obstacle.y + obstacle.height + 5,
-      obstacle.width * 0.6,
-      8,
-      0, 0, Math.PI * 2
-    );
-    ctx.fill();
-    
-    ctx.restore();
-  }, []);
 
-  // Draw seagull obstacle
-  const drawSeagull = useCallback((ctx: CanvasRenderingContext2D, obstacle: Obstacle, time: number) => {
-    ctx.save();
-    ctx.translate(obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2);
-    
-    // Wing flap animation
-    const flapAngle = Math.sin(time * 0.02) * 0.3;
-    
-    // Body
-    ctx.fillStyle = "#f5f5f5";
+    // Middle wave layer
+    ctx.fillStyle = COLORS.water2;
     ctx.beginPath();
-    ctx.ellipse(0, 0, obstacle.width * 0.4, obstacle.height * 0.25, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Left wing
-    ctx.save();
-    ctx.rotate(-flapAngle);
-    ctx.fillStyle = "#e5e5e5";
-    ctx.beginPath();
-    ctx.moveTo(-5, 0);
-    ctx.quadraticCurveTo(-obstacle.width * 0.5, -obstacle.height * 0.4, -obstacle.width * 0.6, 0);
-    ctx.quadraticCurveTo(-obstacle.width * 0.4, 5, -5, 0);
-    ctx.fill();
-    ctx.restore();
-    
-    // Right wing
-    ctx.save();
-    ctx.rotate(flapAngle);
-    ctx.fillStyle = "#e5e5e5";
-    ctx.beginPath();
-    ctx.moveTo(5, 0);
-    ctx.quadraticCurveTo(obstacle.width * 0.5, -obstacle.height * 0.4, obstacle.width * 0.6, 0);
-    ctx.quadraticCurveTo(obstacle.width * 0.4, 5, 5, 0);
-    ctx.fill();
-    ctx.restore();
-    
-    // Head
-    ctx.fillStyle = "#f5f5f5";
-    ctx.beginPath();
-    ctx.arc(obstacle.width * 0.3, -obstacle.height * 0.1, obstacle.width * 0.15, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Beak
-    ctx.fillStyle = "#f59e0b";
-    ctx.beginPath();
-    ctx.moveTo(obstacle.width * 0.4, -obstacle.height * 0.1);
-    ctx.lineTo(obstacle.width * 0.55, -obstacle.height * 0.05);
-    ctx.lineTo(obstacle.width * 0.4, 0);
+    ctx.moveTo(0, height);
+    for (let x = 0; x <= width; x += 15) {
+      const y = waterTop + 40 + Math.sin((x + time * 2) * 0.02) * 12;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(width, height);
     ctx.closePath();
     ctx.fill();
-    
-    // Eye
-    ctx.fillStyle = "#1f2937";
-    ctx.beginPath();
-    ctx.arc(obstacle.width * 0.32, -obstacle.height * 0.12, 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.restore();
-  }, []);
 
-  // Draw water and waves
-  const drawWater = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
-    // Sky gradient
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, height * 0.6);
-    skyGradient.addColorStop(0, "#87ceeb");
-    skyGradient.addColorStop(0.5, "#98d8ea");
-    skyGradient.addColorStop(1, "#b0e0e6");
-    ctx.fillStyle = skyGradient;
-    ctx.fillRect(0, 0, width, height * 0.6);
-    
-    // Sun
-    ctx.fillStyle = "#fff7b2";
+    // Front wave layer
+    ctx.fillStyle = COLORS.water3;
     ctx.beginPath();
-    ctx.arc(width - 80, 50, 35, 0, Math.PI * 2);
+    ctx.moveTo(0, height);
+    for (let x = 0; x <= width; x += 10) {
+      const y = waterTop + 60 + Math.sin((x + time * 2.5) * 0.025) * 10;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(width, height);
+    ctx.closePath();
     ctx.fill();
-    
-    ctx.fillStyle = "#ffd700";
-    ctx.beginPath();
-    ctx.arc(width - 80, 50, 28, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Clouds
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    const drawCloud = (x: number, y: number, scale: number) => {
-      ctx.beginPath();
-      ctx.arc(x, y, 20 * scale, 0, Math.PI * 2);
-      ctx.arc(x + 25 * scale, y - 5 * scale, 25 * scale, 0, Math.PI * 2);
-      ctx.arc(x + 50 * scale, y, 20 * scale, 0, Math.PI * 2);
-      ctx.fill();
-    };
-    
-    drawCloud((time * 0.02) % (width + 200) - 100, 40, 1);
-    drawCloud((time * 0.015 + 300) % (width + 200) - 100, 70, 0.7);
-    
-    // Water
-    const waterY = height * 0.55;
-    const waterGradient = ctx.createLinearGradient(0, waterY, 0, height);
-    waterGradient.addColorStop(0, "#0077be");
-    waterGradient.addColorStop(0.3, "#0066a0");
-    waterGradient.addColorStop(1, "#004d7a");
-    ctx.fillStyle = waterGradient;
-    ctx.fillRect(0, waterY, width, height - waterY);
-    
-    // Animated waves
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-    ctx.lineWidth = 2;
-    
+
+    // Foam lines
+    ctx.strokeStyle = COLORS.foam;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 12]);
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      const waveY = waterY + 20 + i * 30;
-      for (let x = 0; x < width; x += 5) {
-        const y = waveY + Math.sin((x + time * (2 - i * 0.5)) * 0.02) * (8 - i * 2);
-        if (x === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+      for (let x = 0; x <= width; x += 8) {
+        const y = waterTop + 30 + i * 40 + Math.sin((x + time * (2 + i * 0.3)) * 0.02) * 8;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
-    
-    // Wave foam at water line
-    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-    ctx.beginPath();
-    for (let x = 0; x < width; x += 10) {
-      const y = waterY + Math.sin((x + time * 3) * 0.03) * 5;
-      ctx.arc(x, y, 4 + Math.sin((x + time) * 0.05) * 2, 0, Math.PI * 2);
+    ctx.setLineDash([]);
+
+    // Lane indicators (subtle)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 2;
+    for (let i = 1; i < LANE_COUNT; i++) {
+      const laneY = (height / LANE_COUNT) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, laneY);
+      ctx.lineTo(width, laneY);
+      ctx.stroke();
     }
-    ctx.fill();
   }, []);
+
+  // Draw low-poly surfer
+  const drawSurfer = useCallback((ctx: CanvasRenderingContext2D, surfer: Surfer, time: number) => {
+    const { x, y, width: w, height: h, isDucking } = surfer;
+    const bobOffset = Math.sin(time * 0.08) * 3;
+    const drawY = y + bobOffset - h / 2;
+    
+    // Surfboard - pixelated
+    const boardY = drawY + (isDucking ? h - 8 : h - 10);
+    drawPixelRect(ctx, x - 8, boardY, w + 16, 8, COLORS.board);
+    drawPixelRect(ctx, x, boardY + 2, w, 4, COLORS.boardStripe);
+    
+    if (isDucking) {
+      // Ducking pose - compact
+      // Body crouched
+      drawPixelRect(ctx, x + 4, drawY + h - 25, w - 8, 18, COLORS.shirt);
+      // Head down
+      drawPixelRect(ctx, x + 8, drawY + h - 35, 20, 14, COLORS.surfer);
+      // Arms forward
+      drawPixelRect(ctx, x - 6, drawY + h - 20, 12, 6, COLORS.surfer);
+      drawPixelRect(ctx, x + w - 6, drawY + h - 20, 12, 6, COLORS.surfer);
+    } else {
+      // Standing pose
+      // Legs
+      drawPixelRect(ctx, x + 8, drawY + h - 22, 8, 18, COLORS.shorts);
+      drawPixelRect(ctx, x + w - 16, drawY + h - 22, 8, 18, COLORS.shorts);
+      // Torso
+      drawPixelRect(ctx, x + 6, drawY + 20, w - 12, 24, COLORS.shirt);
+      // Arms
+      const armWave = Math.sin(time * 0.1) * 4;
+      drawPixelRect(ctx, x - 4, drawY + 22 + armWave, 10, 6, COLORS.surfer);
+      drawPixelRect(ctx, x + w - 6, drawY + 22 - armWave, 10, 6, COLORS.surfer);
+      // Head
+      drawPixelRect(ctx, x + 8, drawY + 4, 20, 18, COLORS.surfer);
+      // Hair
+      drawPixelRect(ctx, x + 8, drawY + 2, 20, 8, "#5d4e37");
+      // Eyes
+      drawPixelRect(ctx, x + 22, drawY + 10, 4, 4, "#333");
+    }
+  }, [drawPixelRect]);
+
+  // Draw rock obstacle (low-poly)
+  const drawRock = useCallback((ctx: CanvasRenderingContext2D, obstacle: Obstacle) => {
+    const { x, y, width: w, height: h } = obstacle;
+    
+    // Main rock shape - angular/pixelated
+    ctx.fillStyle = COLORS.rock;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x + w * 0.15, y + h * 0.4);
+    ctx.lineTo(x + w * 0.4, y);
+    ctx.lineTo(x + w * 0.7, y + h * 0.2);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Highlight
+    ctx.fillStyle = COLORS.rockLight;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.3, y + h * 0.5);
+    ctx.lineTo(x + w * 0.4, y + h * 0.15);
+    ctx.lineTo(x + w * 0.55, y + h * 0.35);
+    ctx.closePath();
+    ctx.fill();
+
+    // Water splash
+    ctx.fillStyle = COLORS.foam;
+    drawPixelRect(ctx, x - 4, y + h - 4, 8, 6);
+    drawPixelRect(ctx, x + w - 4, y + h - 4, 8, 6);
+  }, [drawPixelRect]);
+
+  // Draw seagull obstacle (low-poly)
+  const drawSeagull = useCallback((ctx: CanvasRenderingContext2D, obstacle: Obstacle, time: number) => {
+    const { x, y, width: w, height: h } = obstacle;
+    const flapOffset = Math.sin(time * 0.15) * 8;
+    
+    // Body
+    ctx.fillStyle = "#ecf0f1";
+    drawPixelRect(ctx, x + w * 0.3, y + h * 0.4, w * 0.4, h * 0.3);
+    
+    // Wings
+    ctx.fillStyle = "#bdc3c7";
+    // Left wing
+    drawPixelRect(ctx, x, y + h * 0.3 - flapOffset, w * 0.35, h * 0.2);
+    // Right wing
+    drawPixelRect(ctx, x + w * 0.65, y + h * 0.3 + flapOffset, w * 0.35, h * 0.2);
+    
+    // Head
+    ctx.fillStyle = "#ecf0f1";
+    drawPixelRect(ctx, x + w * 0.6, y + h * 0.25, w * 0.2, h * 0.2);
+    
+    // Beak
+    ctx.fillStyle = "#f39c12";
+    drawPixelRect(ctx, x + w * 0.75, y + h * 0.32, w * 0.15, h * 0.1);
+    
+    // Eye
+    ctx.fillStyle = "#2c3e50";
+    drawPixelRect(ctx, x + w * 0.65, y + h * 0.3, 3, 3);
+  }, [drawPixelRect]);
+
+  // Draw barrel obstacle (bonus obstacle type)
+  const drawBarrel = useCallback((ctx: CanvasRenderingContext2D, obstacle: Obstacle) => {
+    const { x, y, width: w, height: h } = obstacle;
+    
+    // Barrel body
+    ctx.fillStyle = "#8b4513";
+    drawPixelRect(ctx, x + 4, y + 4, w - 8, h - 8);
+    
+    // Metal bands
+    ctx.fillStyle = "#5d6d7e";
+    drawPixelRect(ctx, x, y + h * 0.2, w, 6);
+    drawPixelRect(ctx, x, y + h * 0.7, w, 6);
+    
+    // Highlight
+    ctx.fillStyle = "#a0522d";
+    drawPixelRect(ctx, x + w * 0.3, y + 8, w * 0.15, h - 16);
+  }, [drawPixelRect]);
 
   // Check collision
   const checkCollision = useCallback((surfer: Surfer, obstacle: Obstacle): boolean => {
-    // Add some padding for more forgiving collision
-    const padding = 10;
+    const padding = surfer.isDucking ? 15 : 12;
+    const surferTop = surfer.y - surfer.height / 2;
+    const surferBottom = surfer.y + surfer.height / 2;
+    const surferLeft = surfer.x;
+    const surferRight = surfer.x + surfer.width;
+    
+    const obstacleTop = obstacle.y;
+    const obstacleBottom = obstacle.y + obstacle.height;
+    const obstacleLeft = obstacle.x;
+    const obstacleRight = obstacle.x + obstacle.width;
+    
+    // Seagulls can be ducked under
+    if (obstacle.type === "seagull" && surfer.isDucking) {
+      return false;
+    }
+    
     return (
-      surfer.x + padding < obstacle.x + obstacle.width &&
-      surfer.x + surfer.width - padding > obstacle.x &&
-      surfer.y + padding < obstacle.y + obstacle.height &&
-      surfer.y + surfer.height - padding > obstacle.y
+      surferRight - padding > obstacleLeft &&
+      surferLeft + padding < obstacleRight &&
+      surferBottom - padding > obstacleTop &&
+      surferTop + padding < obstacleBottom
     );
   }, []);
 
@@ -588,11 +559,10 @@ const SurfGame = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const gameLoop = (timestamp: number) => {
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const deltaTime = timestamp - lastTimeRef.current;
-      lastTimeRef.current = timestamp;
+    // Disable image smoothing for pixel art effect
+    ctx.imageSmoothingEnabled = false;
 
+    const gameLoop = () => {
       frameCountRef.current++;
       const time = frameCountRef.current;
 
@@ -600,52 +570,55 @@ const SurfGame = () => {
       ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
       // Draw background
-      drawWater(ctx, canvasSize.width, canvasSize.height, time);
+      drawBackground(ctx, canvasSize.width, canvasSize.height, time);
 
-      // Update surfer
+      // Update surfer position (smooth movement to target lane)
       const surfer = surferRef.current;
-      
-      if (surfer.isJumping) {
-        surfer.velocityY += GRAVITY;
-        surfer.y += surfer.velocityY;
-        
-        if (surfer.y >= surfer.baseY) {
-          surfer.y = surfer.baseY;
-          surfer.velocityY = 0;
-          surfer.isJumping = false;
-        }
-      }
+      const dy = surfer.targetY - surfer.y;
+      surfer.y += dy * 0.15;
 
       // Draw surfer
       drawSurfer(ctx, surfer, time);
 
-      // Spawn obstacles
-      if (Math.random() < OBSTACLE_SPAWN_RATE * (gameSpeedRef.current / GAME_SPEED_INITIAL)) {
-        const isSeagull = Math.random() > 0.5;
-        const baseY = canvasSize.height - 80;
+      // Spawn obstacles with better spacing
+      const shouldSpawn = Math.random() < OBSTACLE_SPAWN_RATE;
+      const hasEnoughGap = lastObstacleXRef.current > canvasSize.width + MIN_OBSTACLE_GAP;
+      
+      if (shouldSpawn && hasEnoughGap) {
+        const lane = Math.floor(Math.random() * LANE_COUNT);
+        const laneY = getLaneY(lane, canvasSize.height);
+        const types: ("rock" | "seagull" | "barrel")[] = ["rock", "rock", "seagull", "barrel"];
+        const type = types[Math.floor(Math.random() * types.length)];
         
-        if (isSeagull) {
-          obstaclesRef.current.push({
-            x: canvasSize.width + 50,
-            y: baseY - 60 - Math.random() * 40,
-            width: 50,
-            height: 35,
-            type: "seagull",
-            passed: false,
-          });
-        } else {
-          obstaclesRef.current.push({
-            x: canvasSize.width + 50,
-            y: baseY + 20,
-            width: 35 + Math.random() * 20,
-            height: 35 + Math.random() * 15,
-            type: "rock",
-            passed: false,
-          });
+        let obstacleHeight = 35;
+        let obstacleWidth = 35;
+        let yOffset = 0;
+        
+        if (type === "seagull") {
+          obstacleWidth = 45;
+          obstacleHeight = 25;
+          yOffset = -15;
+        } else if (type === "barrel") {
+          obstacleWidth = 30;
+          obstacleHeight = 35;
         }
+        
+        obstaclesRef.current.push({
+          x: canvasSize.width + 50,
+          y: laneY - obstacleHeight / 2 + yOffset,
+          width: obstacleWidth,
+          height: obstacleHeight,
+          type,
+          lane,
+          passed: false,
+        });
+        
+        lastObstacleXRef.current = canvasSize.width + 50;
       }
 
-      // Update and draw obstacles
+      // Update obstacles
+      lastObstacleXRef.current -= gameSpeedRef.current;
+      
       obstaclesRef.current = obstaclesRef.current.filter((obstacle) => {
         obstacle.x -= gameSpeedRef.current;
 
@@ -678,26 +651,33 @@ const SurfGame = () => {
         // Draw obstacle
         if (obstacle.type === "rock") {
           drawRock(ctx, obstacle);
-        } else {
+        } else if (obstacle.type === "seagull") {
           drawSeagull(ctx, obstacle, time);
+        } else {
+          drawBarrel(ctx, obstacle);
         }
 
         return obstacle.x > -100;
       });
 
-      // Update game speed
+      // Update game speed (accelerate over time)
       gameSpeedRef.current += GAME_SPEED_INCREMENT;
 
       // Update score display
       setGameState((prev) => ({ ...prev, score: scoreRef.current }));
 
-      // Draw score on canvas
+      // Draw score (pixelated style)
       ctx.fillStyle = "#fff";
-      ctx.strokeStyle = "#333";
+      ctx.strokeStyle = "#000";
       ctx.lineWidth = 3;
-      ctx.font = "bold 20px 'Outfit', sans-serif";
-      ctx.strokeText(`Score: ${scoreRef.current}`, 15, 30);
-      ctx.fillText(`Score: ${scoreRef.current}`, 15, 30);
+      ctx.font = "bold 18px monospace";
+      ctx.strokeText(`SCORE: ${scoreRef.current}`, 12, 28);
+      ctx.fillText(`SCORE: ${scoreRef.current}`, 12, 28);
+      
+      // Speed indicator
+      const speed = Math.floor(gameSpeedRef.current * 10);
+      ctx.strokeText(`SPEED: ${speed}`, 12, 50);
+      ctx.fillText(`SPEED: ${speed}`, 12, 50);
 
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     };
@@ -709,7 +689,7 @@ const SurfGame = () => {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [gameState.isPlaying, canvasSize, drawWater, drawSurfer, drawRock, drawSeagull, checkCollision, playSound]);
+  }, [gameState.isPlaying, canvasSize, drawBackground, drawSurfer, drawRock, drawSeagull, drawBarrel, checkCollision, playSound, getLaneY]);
 
   // Draw idle state
   useEffect(() => {
@@ -721,41 +701,51 @@ const SurfGame = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.imageSmoothingEnabled = false;
+
     const drawIdleState = (time: number) => {
       ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
-      drawWater(ctx, canvasSize.width, canvasSize.height, time);
+      drawBackground(ctx, canvasSize.width, canvasSize.height, time);
 
-      // Draw idle surfer
+      // Draw idle surfer in center
       const idleSurfer: Surfer = {
-        x: 80,
-        y: canvasSize.height - 80,
-        baseY: canvasSize.height - 80,
-        width: 40,
-        height: 60,
-        velocityY: 0,
-        isJumping: false,
+        x: 100,
+        y: canvasSize.height / 2,
+        targetY: canvasSize.height / 2,
+        width: 36,
+        height: 50,
+        lane: 1,
         isDucking: false,
       };
       drawSurfer(ctx, idleSurfer, time);
 
-      // Draw game over or start text
-      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-      ctx.fillRect(canvasSize.width / 2 - 140, canvasSize.height / 2 - 50, 280, 100);
+      // Draw overlay box
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(canvasSize.width / 2 - 150, canvasSize.height / 2 - 55, 300, 110);
+      
+      // Border
+      ctx.strokeStyle = COLORS.sun;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(canvasSize.width / 2 - 150, canvasSize.height / 2 - 55, 300, 110);
       
       ctx.fillStyle = "#fff";
-      ctx.font = "bold 24px 'Outfit', sans-serif";
+      ctx.font = "bold 22px monospace";
       ctx.textAlign = "center";
 
       if (gameState.isGameOver) {
-        ctx.fillText("Game Over!", canvasSize.width / 2, canvasSize.height / 2 - 15);
-        ctx.font = "16px 'Outfit', sans-serif";
-        ctx.fillText(`Score: ${gameState.score}`, canvasSize.width / 2, canvasSize.height / 2 + 10);
-        ctx.fillText("Tap or Press Space to Retry", canvasSize.width / 2, canvasSize.height / 2 + 35);
+        ctx.fillStyle = COLORS.sky1;
+        ctx.fillText("GAME OVER!", canvasSize.width / 2, canvasSize.height / 2 - 20);
+        ctx.fillStyle = "#fff";
+        ctx.font = "16px monospace";
+        ctx.fillText(`Score: ${gameState.score}`, canvasSize.width / 2, canvasSize.height / 2 + 5);
+        ctx.fillText("Press SPACE to Retry", canvasSize.width / 2, canvasSize.height / 2 + 35);
       } else {
-        ctx.fillText("🏄 Surf Runner", canvasSize.width / 2, canvasSize.height / 2 - 10);
-        ctx.font = "14px 'Outfit', sans-serif";
-        ctx.fillText("Tap/Space: Jump • Swipe Down/↓: Duck", canvasSize.width / 2, canvasSize.height / 2 + 15);
-        ctx.fillText("Tap or Press Space to Start", canvasSize.width / 2, canvasSize.height / 2 + 35);
+        ctx.fillStyle = COLORS.sun;
+        ctx.fillText("SURF RUNNER", canvasSize.width / 2, canvasSize.height / 2 - 20);
+        ctx.fillStyle = "#fff";
+        ctx.font = "14px monospace";
+        ctx.fillText("↑/↓: Move • HOLD ↓: Duck", canvasSize.width / 2, canvasSize.height / 2 + 8);
+        ctx.fillText("Press SPACE to Start", canvasSize.width / 2, canvasSize.height / 2 + 35);
       }
       ctx.textAlign = "left";
     };
@@ -776,21 +766,21 @@ const SurfGame = () => {
         cancelAnimationFrame(animationId);
       }
     };
-  }, [gameState.isPlaying, gameState.isGameOver, gameState.score, canvasSize, drawWater, drawSurfer]);
+  }, [gameState.isPlaying, gameState.isGameOver, gameState.score, canvasSize, drawBackground, drawSurfer]);
 
   return (
     <div ref={containerRef} className="w-full">
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-card rounded-lg shadow-lg overflow-hidden border-2 border-orange-500/30">
         {/* Game Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600">
+        <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500">
           <div className="flex items-center gap-2 text-white">
             <Gamepad2 className="h-5 w-5" />
-            <span className="font-semibold text-sm md:text-base">Surf Runner</span>
+            <span className="font-bold text-sm md:text-base tracking-wide">SURF RUNNER</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-white text-sm">
+            <div className="flex items-center gap-1 text-white text-sm bg-black/20 px-2 py-1 rounded">
               <Trophy className="h-4 w-4 text-yellow-300" />
-              <span>{gameState.highScore}</span>
+              <span className="font-mono">{gameState.highScore}</span>
             </div>
             <Button
               variant="ghost"
@@ -819,12 +809,12 @@ const SurfGame = () => {
           width={canvasSize.width}
           height={canvasSize.height}
           className="w-full cursor-pointer touch-none"
-          style={{ display: "block" }}
+          style={{ display: "block", imageRendering: "pixelated" }}
         />
 
         {/* Mobile Controls Info */}
-        <div className="px-4 py-2 bg-muted/50 text-center text-xs text-muted-foreground md:hidden">
-          Tap to jump • Swipe down to duck
+        <div className="px-4 py-2 bg-gradient-to-r from-orange-500/20 to-pink-500/20 text-center text-xs text-muted-foreground md:hidden">
+          Swipe ↑↓ to move • Hold down to duck
         </div>
       </div>
     </div>
