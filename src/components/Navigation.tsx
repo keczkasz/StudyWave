@@ -1,3 +1,4 @@
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Home, Upload, Library, LogOut, Settings, CreditCard, Gamepad2 } from "lucide-react";
-import { useEffect, useState } from "react";
 
-const Navigation = () => {
+// Utility function moved outside to prevent recreation
+const getInitials = (email: string) => email.substring(0, 2).toUpperCase();
+
+const Navigation = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userEmail, setUserEmail] = useState<string>("");
@@ -21,17 +24,32 @@ const Navigation = () => {
     getUserEmail();
   }, []);
 
-  const handleLogout = async () => {
+  // Memoize navigation handlers
+  const navigateToDashboard = useCallback(() => navigate("/dashboard"), [navigate]);
+  const navigateToUpload = useCallback(() => navigate("/upload"), [navigate]);
+  const navigateToLibrary = useCallback(() => navigate("/library"), [navigate]);
+  const navigateToGame = useCallback(() => navigate("/game"), [navigate]);
+  
+  const navigateToSettings = useCallback(() => {
+    setOpen(false);
+    navigate("/settings");
+  }, [navigate]);
+  
+  const navigateToPricing = useCallback(() => {
+    setOpen(false);
+    navigate("/pricing");
+  }, [navigate]);
+
+  const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     setOpen(false);
     navigate("/");
-  };
+  }, [navigate]);
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
-  };
+  // Memoize initials
+  const initials = useMemo(() => getInitials(userEmail), [userEmail]);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   return (
     <>
@@ -41,7 +59,7 @@ const Navigation = () => {
             <div className="flex items-center gap-4 sm:gap-8">
               <h1
                 className="text-lg sm:text-xl font-bold text-primary cursor-pointer"
-                onClick={() => navigate("/dashboard")}
+                onClick={navigateToDashboard}
               >
                 PDF2Audio
               </h1>
@@ -49,7 +67,7 @@ const Navigation = () => {
                 <Button
                   variant={isActive("/dashboard") ? "secondary" : "ghost"}
                   className="gap-2"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={navigateToDashboard}
                 >
                   <Home className="h-4 w-4" />
                   Dashboard
@@ -57,7 +75,7 @@ const Navigation = () => {
                 <Button
                   variant={isActive("/upload") ? "secondary" : "ghost"}
                   className="gap-2"
-                  onClick={() => navigate("/upload")}
+                  onClick={navigateToUpload}
                 >
                   <Upload className="h-4 w-4" />
                   Upload
@@ -65,7 +83,7 @@ const Navigation = () => {
                 <Button
                   variant={isActive("/library") ? "secondary" : "ghost"}
                   className="gap-2"
-                  onClick={() => navigate("/library")}
+                  onClick={navigateToLibrary}
                 >
                   <Library className="h-4 w-4" />
                   Library
@@ -73,7 +91,7 @@ const Navigation = () => {
                 <Button
                   variant={isActive("/game") ? "secondary" : "ghost"}
                   className="gap-2"
-                  onClick={() => navigate("/game")}
+                  onClick={navigateToGame}
                 >
                   <Gamepad2 className="h-4 w-4" />
                   Game
@@ -85,7 +103,7 @@ const Navigation = () => {
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="" alt={userEmail} />
-                    <AvatarFallback>{getInitials(userEmail)}</AvatarFallback>
+                    <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </PopoverTrigger>
@@ -98,10 +116,7 @@ const Navigation = () => {
                   <Button
                     variant="ghost"
                     className="justify-start gap-2 w-full"
-                    onClick={() => {
-                      setOpen(false);
-                      navigate("/settings");
-                    }}
+                    onClick={navigateToSettings}
                   >
                     <Settings className="h-4 w-4" />
                     Settings
@@ -109,10 +124,7 @@ const Navigation = () => {
                   <Button
                     variant="ghost"
                     className="justify-start gap-2 w-full"
-                    onClick={() => {
-                      setOpen(false);
-                      navigate("/pricing");
-                    }}
+                    onClick={navigateToPricing}
                   >
                     <CreditCard className="h-4 w-4" />
                     Choose Your Plan
@@ -139,7 +151,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             className={`flex-col gap-1 h-14 px-3 ${isActive("/dashboard") ? "text-primary" : "text-muted-foreground"}`}
-            onClick={() => navigate("/dashboard")}
+            onClick={navigateToDashboard}
           >
             <Home className="h-5 w-5" />
             <span className="text-[10px]">Home</span>
@@ -147,7 +159,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             className={`flex-col gap-1 h-14 px-3 ${isActive("/upload") ? "text-primary" : "text-muted-foreground"}`}
-            onClick={() => navigate("/upload")}
+            onClick={navigateToUpload}
           >
             <Upload className="h-5 w-5" />
             <span className="text-[10px]">Upload</span>
@@ -155,7 +167,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             className={`flex-col gap-1 h-14 px-3 ${isActive("/library") ? "text-primary" : "text-muted-foreground"}`}
-            onClick={() => navigate("/library")}
+            onClick={navigateToLibrary}
           >
             <Library className="h-5 w-5" />
             <span className="text-[10px]">Library</span>
@@ -163,7 +175,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             className={`flex-col gap-1 h-14 px-3 ${isActive("/game") ? "text-primary" : "text-muted-foreground"}`}
-            onClick={() => navigate("/game")}
+            onClick={navigateToGame}
           >
             <Gamepad2 className="h-5 w-5" />
             <span className="text-[10px]">Game</span>
@@ -172,6 +184,8 @@ const Navigation = () => {
       </nav>
     </>
   );
-};
+});
+
+Navigation.displayName = "Navigation";
 
 export default Navigation;
