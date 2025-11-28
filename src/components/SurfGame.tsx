@@ -132,33 +132,7 @@ const SurfGame = () => {
     }));
   }, [resetGame]);
 
-  // Handle jump
-  const jump = useCallback(() => {
-    const surfer = surferRef.current;
-    if (!surfer.isJumping && !surfer.isDucking) {
-      surfer.velocityY = JUMP_FORCE;
-      surfer.isJumping = true;
-      if (soundEnabled) {
-        playSound("jump");
-      }
-    }
-  }, [soundEnabled, playSound]);
-
-  // Handle duck
-  const duck = useCallback((isDucking: boolean) => {
-    const surfer = surferRef.current;
-    if (!surfer.isJumping) {
-      surfer.isDucking = isDucking;
-      surfer.height = isDucking ? 35 : 60;
-      if (isDucking) {
-        surfer.y = surfer.baseY + 25;
-      } else {
-        surfer.y = surfer.baseY;
-      }
-    }
-  }, []);
-
-  // Play sound effects
+  // Play sound effects - defined before jump/duck so it can be used in their dependencies
   const playSound = useCallback((type: "jump" | "hit" | "score") => {
     if (!soundEnabled) return;
     
@@ -197,6 +171,32 @@ const SurfGame = () => {
       // Audio context not available
     }
   }, [soundEnabled]);
+
+  // Handle jump
+  const jump = useCallback(() => {
+    const surfer = surferRef.current;
+    if (!surfer.isJumping && !surfer.isDucking) {
+      surfer.velocityY = JUMP_FORCE;
+      surfer.isJumping = true;
+      if (soundEnabled) {
+        playSound("jump");
+      }
+    }
+  }, [soundEnabled, playSound]);
+
+  // Handle duck
+  const duck = useCallback((isDucking: boolean) => {
+    const surfer = surferRef.current;
+    if (!surfer.isJumping) {
+      surfer.isDucking = isDucking;
+      surfer.height = isDucking ? 35 : 60;
+      if (isDucking) {
+        surfer.y = surfer.baseY + 25;
+      } else {
+        surfer.y = surfer.baseY;
+      }
+    }
+  }, []);
 
   // Keyboard controls
   useEffect(() => {
