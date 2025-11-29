@@ -9,43 +9,42 @@ interface GameState {
   highScore: number;
 }
 
-interface Surfer {
+interface Runner {
   x: number;
   targetX: number;
   lane: number;
   jumpY: number;
   jumpVel: number;
   isJumping: boolean;
-  trickRotation: number;
-  trickType: string;
+  isSliding: boolean;
 }
 
 interface Obstacle {
   y: number;
   lane: number;
-  type: number; // 0=wave, 1=log, 2=buoy
+  type: number; // 0=crate, 1=barrier, 2=bird
   passed: boolean;
 }
 
-// Calm ocean palette - relaxing colors
+// Vaporwave/sunset palette
 const COLORS = {
-  sky: ["#87CEEB", "#B0E0E6", "#E0F4FF", "#F0F8FF"],
-  water: ["#4DB6E5", "#5BC0EB", "#7DD3FC", "#A7E8FF"],
-  sand: "#F5DEB3",
-  sun: "#FFE4B5",
-  sunCore: "#FFD700",
-  foam: "#F0FFFF",
-  board: "#CD853F",
-  boardStripe: "#8B4513",
+  sky: ["#ff6b6b", "#feca57", "#ff9ff3", "#a29bfe"],
+  sand: ["#ffeaa7", "#fdcb6e", "#f9ca24"],
+  water: "#74b9ff",
+  wave: "#0984e3",
+  foam: "#dfe6e9",
+  sun: "#ffeaa7",
+  sunCore: "#fdcb6e",
 };
 
 const LANE_COUNT = 3;
-const SURFER_WIDTH = 40;
-const SURFER_HEIGHT = 50;
-const GAME_SPEED_INITIAL = 3; // Slower for relaxing gameplay
-const OBSTACLE_GAP = 300; // More space between obstacles
-const GRAVITY = 0.5; // Slower gravity for floaty jumps
-const JUMP_FORCE = -10;
+const RUNNER_WIDTH = 36;
+const RUNNER_HEIGHT = 52;
+const SLIDE_HEIGHT = 28;
+const GAME_SPEED_INITIAL = 6;
+const OBSTACLE_GAP = 180;
+const GRAVITY = 0.7;
+const JUMP_FORCE = -13;
 
 const SurfRunner2 = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,17 +63,14 @@ const SurfRunner2 = () => {
   const [canvasSize, setCanvasSize] = useState({ width: 340, height: 500 });
   
   // Game refs
-  const surferRef = useRef<Surfer>({ 
-    x: 170, targetX: 170, lane: 1, jumpY: 0, jumpVel: 0, 
-    isJumping: false, trickRotation: 0, trickType: "" 
-  });
+  const runnerRef = useRef<Runner>({ x: 170, targetX: 170, lane: 1, jumpY: 0, jumpVel: 0, isJumping: false, isSliding: false });
   const obstaclesRef = useRef<Obstacle[]>([]);
   const speedRef = useRef(GAME_SPEED_INITIAL);
   const scoreRef = useRef(0);
   const timeRef = useRef(0);
+  const waveYRef = useRef(550);
   const isPlayingRef = useRef(false);
   const laneXRef = useRef<number[]>([]);
-  const trickScoreRef = useRef(0);
 
   // Calculate lanes
   useEffect(() => {
@@ -107,9 +103,8 @@ const SurfRunner2 = () => {
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.type = "sine"; // Softer sound
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
       osc.start();
       osc.stop(ctx.currentTime + dur);
@@ -118,17 +113,14 @@ const SurfRunner2 = () => {
 
   // Reset
   const resetGame = useCallback(() => {
-    surferRef.current = { 
-      x: laneXRef.current[1], targetX: laneXRef.current[1], lane: 1, 
-      jumpY: 0, jumpVel: 0, isJumping: false, trickRotation: 0, trickType: "" 
-    };
+    runnerRef.current = { x: laneXRef.current[1], targetX: laneXRef.current[1], lane: 1, jumpY: 0, jumpVel: 0, isJumping: false, isSliding: false };
     obstaclesRef.current = [];
     speedRef.current = GAME_SPEED_INITIAL;
     scoreRef.current = 0;
     timeRef.current = 0;
+    waveYRef.current = canvasSize.height + 80;
     lastSpawnRef.current = -100;
-    trickScoreRef.current = 0;
-  }, []);
+  }, [canvasSize.height]);
 
   // Start
   const startGame = useCallback(() => {
@@ -140,42 +132,37 @@ const SurfRunner2 = () => {
   // End
   const endGame = useCallback(() => {
     isPlayingRef.current = false;
-    const finalScore = scoreRef.current + trickScoreRef.current;
-    const newHigh = Math.max(gameState.highScore, finalScore);
+    const newHigh = Math.max(gameState.highScore, scoreRef.current);
     localStorage.setItem("surfRunner2HighScore", newHigh.toString());
-    setGameState({ isPlaying: false, isGameOver: true, score: finalScore, highScore: newHigh });
-    playSound(200, 0.2);
+    setGameState({ isPlaying: false, isGameOver: true, score: scoreRef.current, highScore: newHigh });
+    playSound(150, 0.3);
   }, [gameState.highScore, playSound]);
 
   // Movement
   const moveLeft = useCallback(() => {
-    const s = surferRef.current;
-    if (s.lane > 0) {
-      s.lane--;
-      s.targetX = laneXRef.current[s.lane];
-      playSound(350, 0.05);
+    const r = runnerRef.current;
+    if (r.lane > 0) {
+      r.lane--;
+      r.targetX = laneXRef.current[r.lane];
+      playSound(450, 0.06);
     }
   }, [playSound]);
 
   const moveRight = useCallback(() => {
-    const s = surferRef.current;
-    if (s.lane < LANE_COUNT - 1) {
-      s.lane++;
-      s.targetX = laneXRef.current[s.lane];
-      playSound(350, 0.05);
+    const r = runnerRef.current;
+    if (r.lane < LANE_COUNT - 1) {
+      r.lane++;
+      r.targetX = laneXRef.current[r.lane];
+      playSound(450, 0.06);
     }
   }, [playSound]);
 
   const jump = useCallback(() => {
-    const s = surferRef.current;
-    if (!s.isJumping) {
-      s.isJumping = true;
-      s.jumpVel = JUMP_FORCE;
-      // Random trick
-      const tricks = ["spin", "flip", "grab"];
-      s.trickType = tricks[Math.floor(Math.random() * tricks.length)];
-      s.trickRotation = 0;
-      playSound(500, 0.08);
+    const r = runnerRef.current;
+    if (!r.isJumping && !r.isSliding) {
+      r.isJumping = true;
+      r.jumpVel = JUMP_FORCE;
+      playSound(600, 0.1);
     }
   }, [playSound]);
 
@@ -192,9 +179,14 @@ const SurfRunner2 = () => {
       if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); moveLeft(); }
       else if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); moveRight(); }
       else if (e.code === "ArrowUp" || e.code === "Space" || e.code === "KeyW") { e.preventDefault(); jump(); }
+      else if (e.code === "ArrowDown" || e.code === "KeyS") { e.preventDefault(); runnerRef.current.isSliding = true; }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "ArrowDown" || e.code === "KeyS") runnerRef.current.isSliding = false;
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
   }, [startGame, moveLeft, moveRight, jump]);
 
   // Touch
@@ -216,12 +208,12 @@ const SurfRunner2 = () => {
       if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
         if (dx < 0) moveLeft(); else moveRight();
         startX = e.touches[0].clientX;
-      } else if (dy < -30) {
-        jump();
+      } else if (Math.abs(dy) > 30) {
+        if (dy < 0) jump(); else runnerRef.current.isSliding = true;
         startY = e.touches[0].clientY;
       }
     };
-    const onEnd = (e: TouchEvent) => { e.preventDefault(); };
+    const onEnd = (e: TouchEvent) => { e.preventDefault(); runnerRef.current.isSliding = false; };
     canvas.addEventListener("touchstart", onStart, { passive: false });
     canvas.addEventListener("touchmove", onMove, { passive: false });
     canvas.addEventListener("touchend", onEnd, { passive: false });
@@ -242,20 +234,19 @@ const SurfRunner2 = () => {
     const W = canvasSize.width;
     const H = canvasSize.height;
     const laneW = W / LANE_COUNT;
-    const surferBaseY = H * 0.7;
+    const runnerBaseY = H * 0.72;
 
     // Pre-create gradients
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.4);
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.5);
     skyGrad.addColorStop(0, COLORS.sky[0]);
-    skyGrad.addColorStop(0.4, COLORS.sky[1]);
-    skyGrad.addColorStop(0.7, COLORS.sky[2]);
+    skyGrad.addColorStop(0.35, COLORS.sky[1]);
+    skyGrad.addColorStop(0.65, COLORS.sky[2]);
     skyGrad.addColorStop(1, COLORS.sky[3]);
 
-    const waterGrad = ctx.createLinearGradient(0, H * 0.35, 0, H);
-    waterGrad.addColorStop(0, COLORS.water[0]);
-    waterGrad.addColorStop(0.4, COLORS.water[1]);
-    waterGrad.addColorStop(0.7, COLORS.water[2]);
-    waterGrad.addColorStop(1, COLORS.water[3]);
+    const sandGrad = ctx.createLinearGradient(0, H * 0.35, 0, H);
+    sandGrad.addColorStop(0, COLORS.sand[0]);
+    sandGrad.addColorStop(0.5, COLORS.sand[1]);
+    sandGrad.addColorStop(1, COLORS.sand[2]);
 
     const render = () => {
       timeRef.current++;
@@ -263,88 +254,69 @@ const SurfRunner2 = () => {
 
       // Sky
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, W, H * 0.45);
+      ctx.fillRect(0, 0, W, H * 0.5);
 
       // Sun
       const sunX = W * 0.75;
       ctx.fillStyle = COLORS.sun;
       ctx.beginPath();
-      ctx.arc(sunX, 50, 40, 0, Math.PI * 2);
+      ctx.arc(sunX, 55, 35, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = COLORS.sunCore;
       ctx.beginPath();
-      ctx.arc(sunX, 50, 30, 0, Math.PI * 2);
+      ctx.arc(sunX, 55, 26, 0, Math.PI * 2);
       ctx.fill();
 
-      // Clouds (simple, relaxing)
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
-      for (let i = 0; i < 3; i++) {
-        const cx = ((t * 0.2 + i * 150) % (W + 100)) - 50;
-        const cy = 40 + i * 25;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 35, 15, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx + 25, cy - 5, 25, 12, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx - 20, cy + 3, 22, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // Beach/sand perspective
+      ctx.fillStyle = sandGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, H * 0.4);
+      ctx.lineTo(W, H * 0.4);
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.fill();
 
-      // Ocean water
-      ctx.fillStyle = waterGrad;
-      ctx.fillRect(0, H * 0.4, W, H * 0.6);
-
-      // Gentle wave patterns
-      ctx.strokeStyle = "rgba(255,255,255,0.3)";
+      // Lane lines (perspective)
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
       ctx.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        ctx.beginPath();
-        const baseY = H * 0.45 + i * 40 + (t * 0.5 % 40);
-        for (let x = 0; x <= W; x += 15) {
-          const y = baseY + Math.sin((x + t * 0.8) * 0.03) * 5;
-          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-
-      // Lane guides (subtle)
-      ctx.strokeStyle = "rgba(255,255,255,0.2)";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([8, 12]);
       for (let i = 1; i < LANE_COUNT; i++) {
         ctx.beginPath();
-        ctx.moveTo(i * laneW, H * 0.5);
+        ctx.moveTo(W / 2, H * 0.35);
         ctx.lineTo(i * laneW, H);
         ctx.stroke();
       }
-      ctx.setLineDash([]);
+
+      // Decorative dots
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      for (let i = 0; i < 8; i++) {
+        const py = H * 0.45 + i * 30 + (t % 40);
+        const spread = (py - H * 0.35) / (H * 0.65) * W * 0.4;
+        if (py < H) {
+          ctx.fillRect(W/2 - spread, py, 4, 4);
+          ctx.fillRect(W/2 + spread - 4, py, 4, 4);
+        }
+      }
 
       if (isPlayingRef.current) {
-        const s = surferRef.current;
+        const r = runnerRef.current;
         
         // Smooth lane movement
-        s.x += (s.targetX - s.x) * 0.12;
+        r.x += (r.targetX - r.x) * 0.18;
 
         // Jump physics
-        if (s.isJumping) {
-          s.jumpVel += GRAVITY;
-          s.jumpY += s.jumpVel;
-          s.trickRotation += 12; // Trick rotation
-          
-          if (s.jumpY >= 0) {
-            s.jumpY = 0;
-            s.jumpVel = 0;
-            s.isJumping = false;
-            // Award trick points
-            if (s.trickRotation > 180) {
-              trickScoreRef.current += 25;
-              playSound(700, 0.1);
-            }
-            s.trickRotation = 0;
-            s.trickType = "";
+        if (r.isJumping) {
+          r.jumpVel += GRAVITY;
+          r.jumpY += r.jumpVel;
+          if (r.jumpY >= 0) {
+            r.jumpY = 0;
+            r.jumpVel = 0;
+            r.isJumping = false;
           }
         }
 
-        // Spawn obstacles (less frequently for relaxed gameplay)
-        if (lastSpawnRef.current > OBSTACLE_GAP && Math.random() < 0.02) {
+        // Spawn obstacles
+        if (lastSpawnRef.current > OBSTACLE_GAP && Math.random() < 0.035) {
           const lane = Math.floor(Math.random() * LANE_COUNT);
           const type = Math.floor(Math.random() * 3);
           obstaclesRef.current.push({ y: -40, lane, type, passed: false });
@@ -359,90 +331,96 @@ const SurfRunner2 = () => {
           ob.y += speed;
           
           // Score when passed
-          if (!ob.passed && ob.y > surferBaseY + 30) {
+          if (!ob.passed && ob.y > runnerBaseY + 30) {
             ob.passed = true;
-            scoreRef.current += 5;
-            if (scoreRef.current % 50 === 0) playSound(600, 0.08);
+            scoreRef.current += 10;
+            if (scoreRef.current % 100 === 0) playSound(800, 0.1);
           }
 
-          // Calculate obstacle position
-          const obX = laneXRef.current[ob.lane];
-          const obW = 40;
-          const obH = ob.type === 2 ? 35 : 45;
+          // Calculate obstacle position (perspective)
+          const progress = (ob.y - H * 0.35) / (H * 0.65);
+          const obX = laneXRef.current[ob.lane] + (laneXRef.current[ob.lane] - W/2) * progress * 0.5;
+          const scale = 0.4 + progress * 0.6;
+          const obW = 35 * scale;
+          const obH = (ob.type === 2 ? 25 : 38) * scale;
 
-          // Collision detection (more forgiving for relaxed gameplay)
-          const sY = surferBaseY + s.jumpY;
-          if (ob.y > sY - SURFER_HEIGHT/2 && ob.y < sY + SURFER_HEIGHT/2 - 10 &&
-              Math.abs(s.x - obX) < (SURFER_WIDTH + obW) / 2 - 15 &&
-              s.jumpY > -35) { // Can jump over obstacles
+          // Skip bird collision when sliding
+          if (ob.type === 2 && r.isSliding) {
+            drawObstacle(ctx, obX, ob.y - obH/2, obW, obH, ob.type, t);
+            return ob.y < H + 50;
+          }
+
+          // Collision detection
+          const rH = r.isSliding ? SLIDE_HEIGHT : RUNNER_HEIGHT;
+          const rY = runnerBaseY + r.jumpY;
+          if (ob.y > rY - rH/2 && ob.y < rY + rH/2 &&
+              Math.abs(r.x - obX) < (RUNNER_WIDTH + obW) / 2 - 10 &&
+              r.jumpY > -40) {
             endGame();
             return false;
           }
 
-          drawObstacle(ctx, obX, ob.y, obW, obH, ob.type, t);
+          drawObstacle(ctx, obX, ob.y - obH/2, obW, obH, ob.type, t);
           return ob.y < H + 50;
         });
 
-        // Very slow speed increase (relaxed)
-        speedRef.current += 0.0003;
+        // Chasing wave
+        waveYRef.current -= 0.008;
+        if (waveYRef.current < H + 50) {
+          const waveProgress = Math.max(0, 1 - (waveYRef.current - H * 0.8) / (H * 0.3));
+          if (waveProgress > 0.95) {
+            endGame();
+          }
+        }
+
+        // Speed up
+        speedRef.current += 0.001;
       }
 
-      // Draw surfer on surfboard
-      const s = surferRef.current;
-      drawSurfer(ctx, s.x, surferBaseY + s.jumpY, s.isJumping, s.trickRotation, s.trickType, t);
+      // Draw chasing wave
+      drawWave(ctx, W, H, waveYRef.current, t);
 
-      // Show trick text
-      if (s.isJumping && s.trickType) {
-        ctx.fillStyle = "#FFD700";
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.shadowColor = "#000";
-        ctx.shadowBlur = 3;
-        const trickName = s.trickType === "spin" ? "🌀 SPIN!" : s.trickType === "flip" ? "🔄 FLIP!" : "✋ GRAB!";
-        ctx.fillText(trickName, s.x, surferBaseY + s.jumpY - 45);
-        ctx.shadowBlur = 0;
-      }
+      // Draw runner
+      const r = runnerRef.current;
+      drawRunner(ctx, r.x, runnerBaseY + r.jumpY, r.isSliding, r.isJumping, t);
 
       // UI
       ctx.fillStyle = "#fff";
       ctx.font = "bold 14px monospace";
-      ctx.textAlign = "left";
       ctx.shadowColor = "#000";
       ctx.shadowBlur = 4;
-      ctx.fillText(`SCORE: ${scoreRef.current + trickScoreRef.current}`, 10, 22);
-      if (trickScoreRef.current > 0) {
-        ctx.fillStyle = "#FFD700";
-        ctx.fillText(`TRICKS: +${trickScoreRef.current}`, 10, 40);
+      ctx.fillText(`SCORE: ${scoreRef.current}`, 10, 22);
+      if (isPlayingRef.current) {
+        ctx.fillText(`SPEED: ${Math.floor(speedRef.current * 10)}`, 10, 40);
       }
       ctx.shadowBlur = 0;
 
       // Overlay
       if (!isPlayingRef.current) {
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(W/2 - 130, H/2 - 55, 260, 110);
-        ctx.strokeStyle = "#FFD700";
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(W/2 - 120, H/2 - 50, 240, 100);
+        ctx.strokeStyle = COLORS.sun;
         ctx.lineWidth = 2;
-        ctx.strokeRect(W/2 - 130, H/2 - 55, 260, 110);
+        ctx.strokeRect(W/2 - 120, H/2 - 50, 240, 100);
         
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
-        ctx.font = "bold 20px monospace";
+        ctx.font = "bold 18px monospace";
         
         if (gameState.isGameOver) {
-          ctx.fillStyle = "#87CEEB";
-          ctx.fillText("GAME OVER", W/2, H/2 - 22);
+          ctx.fillStyle = COLORS.sky[0];
+          ctx.fillText("GAME OVER", W/2, H/2 - 18);
           ctx.fillStyle = "#fff";
           ctx.font = "13px monospace";
-          ctx.fillText(`Score: ${gameState.score}`, W/2, H/2 + 2);
-          ctx.fillText("Tap or SPACE to retry", W/2, H/2 + 24);
+          ctx.fillText(`Score: ${gameState.score}`, W/2, H/2 + 6);
+          ctx.fillText("Tap or SPACE to retry", W/2, H/2 + 28);
         } else {
-          ctx.fillStyle = "#87CEEB";
-          ctx.fillText("🏄 SURF RUNNER 2", W/2, H/2 - 22);
+          ctx.fillStyle = COLORS.sun;
+          ctx.fillText("SURF RUNNER 2", W/2, H/2 - 18);
           ctx.fillStyle = "#fff";
           ctx.font = "11px monospace";
-          ctx.fillText("←→: Switch lanes • ↑: Jump & Trick", W/2, H/2 + 2);
-          ctx.fillText("Avoid obstacles • Perform tricks!", W/2, H/2 + 20);
-          ctx.fillText("Tap or SPACE to start", W/2, H/2 + 40);
+          ctx.fillText("←→: Move • ↑: Jump • ↓: Slide", W/2, H/2 + 6);
+          ctx.fillText("Tap or SPACE to start", W/2, H/2 + 26);
         }
         ctx.textAlign = "left";
       }
@@ -451,117 +429,104 @@ const SurfRunner2 = () => {
     };
 
     // Drawing helpers
-    const drawSurfer = (c: CanvasRenderingContext2D, x: number, y: number, jumping: boolean, rotation: number, trick: string, t: number) => {
-      const bob = jumping ? 0 : Math.sin(t * 0.08) * 2;
-      
-      c.save();
-      c.translate(x, y + bob);
-      
-      // Apply trick rotation
-      if (jumping && rotation > 0) {
-        if (trick === "spin") {
-          c.rotate((rotation * Math.PI) / 180);
-        } else if (trick === "flip") {
-          c.scale(1, Math.cos((rotation * Math.PI) / 180));
-        }
-      }
+    const drawRunner = (c: CanvasRenderingContext2D, x: number, y: number, slide: boolean, jump: boolean, t: number) => {
+      const h = slide ? SLIDE_HEIGHT : RUNNER_HEIGHT;
+      const w = RUNNER_WIDTH;
+      const drawY = y - h/2;
+      const bob = jump ? 0 : Math.sin(t * 0.2) * 2;
 
       // Shadow
-      c.fillStyle = "rgba(0,0,0,0.15)";
+      c.fillStyle = "rgba(0,0,0,0.2)";
       c.beginPath();
-      c.ellipse(0, SURFER_HEIGHT/2 + 8, 25, 8, 0, 0, Math.PI * 2);
+      c.ellipse(x, y + h/2 + 3, w * 0.5, 6, 0, 0, Math.PI * 2);
       c.fill();
 
-      // Surfboard
-      c.fillStyle = COLORS.board;
-      c.beginPath();
-      c.ellipse(0, SURFER_HEIGHT/2 - 2, 28, 6, 0, 0, Math.PI * 2);
-      c.fill();
-      // Board stripe
-      c.fillStyle = COLORS.boardStripe;
-      c.fillRect(-20, SURFER_HEIGHT/2 - 4, 40, 2);
-      // Board fin
-      c.fillStyle = "#2c3e50";
-      c.beginPath();
-      c.moveTo(-3, SURFER_HEIGHT/2 + 3);
-      c.lineTo(3, SURFER_HEIGHT/2 + 3);
-      c.lineTo(0, SURFER_HEIGHT/2 + 10);
-      c.closePath();
-      c.fill();
-
-      // Legs
-      c.fillStyle = "#3498db";
-      c.fillRect(-8, SURFER_HEIGHT/2 - 20, 7, 18);
-      c.fillRect(1, SURFER_HEIGHT/2 - 20, 7, 18);
-
-      // Body (wetsuit)
-      c.fillStyle = "#2c3e50";
-      c.fillRect(-10, -12, 20, 25);
-
-      // Arms (raised when doing tricks)
-      c.fillStyle = "#ffeaa7";
-      if (jumping && trick === "grab") {
-        c.fillRect(-18, -5, 8, 10);
-        c.fillRect(10, -5, 8, 10);
+      if (slide) {
+        // Sliding pose
+        c.fillStyle = "#3498db";
+        c.fillRect(x - w/2, drawY + 12, w, h - 16);
+        c.fillStyle = "#ffeaa7";
+        c.fillRect(x - 8, drawY + 2, 16, 14);
+        c.fillStyle = "#fdcb6e";
+        c.fillRect(x - 8, drawY, 16, 6);
       } else {
-        c.fillRect(-16, -8 + Math.sin(t * 0.15) * 3, 6, 12);
-        c.fillRect(10, -8 - Math.sin(t * 0.15) * 3, 6, 12);
+        // Standing/running
+        const legOffset = Math.sin(t * 0.3) * 4;
+        // Legs
+        c.fillStyle = "#3498db";
+        c.fillRect(x - 10, drawY + h - 22 + bob, 8, 18);
+        c.fillRect(x + 2, drawY + h - 22 - legOffset + bob, 8, 18);
+        // Body
+        c.fillStyle = "#e74c3c";
+        c.fillRect(x - w/2 + 4, drawY + 16 + bob, w - 8, 22);
+        // Head
+        c.fillStyle = "#ffeaa7";
+        c.fillRect(x - 10, drawY + bob, 20, 18);
+        c.fillStyle = "#fdcb6e";
+        c.fillRect(x - 10, drawY + bob - 2, 20, 8);
+        // Arms
+        c.fillStyle = "#ffeaa7";
+        c.fillRect(x - w/2 - 2, drawY + 18 + bob + Math.sin(t * 0.25) * 3, 6, 12);
+        c.fillRect(x + w/2 - 4, drawY + 18 + bob - Math.sin(t * 0.25) * 3, 6, 12);
       }
-
-      // Head
-      c.fillStyle = "#ffeaa7";
-      c.fillRect(-8, -28, 16, 16);
-      
-      // Hair
-      c.fillStyle = "#fdcb6e";
-      c.fillRect(-8, -30, 16, 8);
-
-      c.restore();
     };
 
     const drawObstacle = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, type: number, t: number) => {
       if (type === 0) {
-        // Wave/water splash obstacle
-        c.fillStyle = "#1e90ff";
-        c.beginPath();
-        c.moveTo(x - w/2, y + h/2);
-        for (let i = 0; i <= w; i += 8) {
-          const waveY = y - h/3 + Math.sin((i + t * 2) * 0.15) * 8;
-          c.lineTo(x - w/2 + i, waveY);
-        }
-        c.lineTo(x + w/2, y + h/2);
-        c.closePath();
-        c.fill();
-        // Foam
-        c.fillStyle = "rgba(255,255,255,0.8)";
-        for (let i = 0; i < 3; i++) {
-          const fx = x - w/3 + i * (w/3);
-          const fy = y - h/4 + Math.sin((fx + t * 2) * 0.15) * 8;
-          c.fillRect(fx - 4, fy - 2, 8, 4);
-        }
+        // Crate
+        c.fillStyle = "#a0522d";
+        c.fillRect(x - w/2, y, w, h);
+        c.fillStyle = "#8b4513";
+        c.fillRect(x - w/2 + 2, y + 2, w - 4, 3);
+        c.fillRect(x - w/2 + 2, y + h - 5, w - 4, 3);
+        c.fillRect(x - 2, y + 2, 4, h - 4);
       } else if (type === 1) {
-        // Floating log
-        c.fillStyle = "#8B4513";
-        c.fillRect(x - w/2, y - 8, w, 16);
-        c.fillStyle = "#654321";
-        c.fillRect(x - w/2 + 5, y - 6, 4, 12);
-        c.fillRect(x + w/4, y - 6, 4, 12);
-        // Bark texture
-        c.fillStyle = "#5D4037";
-        c.fillRect(x - w/2, y - 3, w, 3);
-      } else {
-        // Buoy
+        // Barrier
         c.fillStyle = "#e74c3c";
-        c.beginPath();
-        c.arc(x, y, 16, 0, Math.PI * 2);
-        c.fill();
+        c.fillRect(x - w/2, y, w, h);
         c.fillStyle = "#fff";
-        c.fillRect(x - 12, y - 3, 24, 6);
-        // Reflection
-        c.fillStyle = "rgba(255,255,255,0.4)";
-        c.beginPath();
-        c.arc(x - 5, y - 5, 5, 0, Math.PI * 2);
-        c.fill();
+        c.fillRect(x - w/2 + 3, y + h * 0.3, w - 6, 4);
+        c.fillRect(x - w/2 + 3, y + h * 0.6, w - 6, 4);
+      } else {
+        // Bird
+        const flap = Math.sin(t * 0.2) * 5;
+        c.fillStyle = "#dfe6e9";
+        c.fillRect(x - 8, y + 6, 16, 10);
+        c.fillStyle = "#b2bec3";
+        c.fillRect(x - w/2, y + 4 - flap, 12, 5);
+        c.fillRect(x + w/2 - 12, y + 4 + flap, 12, 5);
+        c.fillStyle = "#fdcb6e";
+        c.fillRect(x + 8, y + 8, 6, 4);
+      }
+    };
+
+    const drawWave = (c: CanvasRenderingContext2D, W: number, H: number, waveY: number, t: number) => {
+      if (waveY > H + 60) return;
+      
+      // Big wave
+      const grad = c.createLinearGradient(0, waveY - 40, 0, H);
+      grad.addColorStop(0, COLORS.foam);
+      grad.addColorStop(0.15, COLORS.water);
+      grad.addColorStop(0.4, COLORS.wave);
+      grad.addColorStop(1, "#1a5276");
+      
+      c.fillStyle = grad;
+      c.beginPath();
+      c.moveTo(0, waveY);
+      for (let x = 0; x <= W; x += 15) {
+        const y = waveY - 25 + Math.sin((x + t * 3) * 0.04) * 15;
+        c.lineTo(x, y);
+      }
+      c.lineTo(W, H);
+      c.lineTo(0, H);
+      c.closePath();
+      c.fill();
+
+      // Foam highlights
+      c.fillStyle = "rgba(255,255,255,0.7)";
+      for (let x = 10; x < W; x += 30) {
+        const y = waveY - 20 + Math.sin((x + t * 3) * 0.04) * 14;
+        c.fillRect(x, y, 12, 4);
       }
     };
 
@@ -571,8 +536,8 @@ const SurfRunner2 = () => {
 
   return (
     <div ref={containerRef} className="w-full flex justify-center">
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden border-2 border-[#b4a9c7]/40" style={{ maxWidth: 400 }}>
-        <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#9a8faf] to-[#b4a9c7]">
+      <div className="bg-card rounded-lg shadow-lg overflow-hidden border-2 border-blue-400/40" style={{ maxWidth: 400 }}>
+        <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500">
           <div className="flex items-center gap-2 text-white">
             <Gamepad2 className="h-4 w-4" />
             <span className="font-bold text-sm tracking-wide">SURF RUNNER 2</span>
@@ -597,10 +562,10 @@ const SurfRunner2 = () => {
           width={canvasSize.width}
           height={canvasSize.height}
           className="w-full cursor-pointer touch-none block"
-          style={{ imageRendering: "auto" }}
+          style={{ imageRendering: "pixelated" }}
         />
-        <div className="px-3 py-1.5 bg-gradient-to-r from-[#9a8faf]/10 to-[#b4a9c7]/10 text-center text-[10px] text-muted-foreground md:hidden">
-          Swipe ←→: Move • ↑: Jump & do tricks!
+        <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-center text-[10px] text-muted-foreground md:hidden">
+          Swipe ←→: Move • ↑: Jump • ↓: Slide
         </div>
       </div>
     </div>
