@@ -57,9 +57,10 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<'en' | 'pl'>('en');
   const [showWaveform, setShowWaveform] = useState(false);
+  const [accumulatedListenedTime, setAccumulatedListenedTime] = useState(0);
   
   const playbackStartTimeRef = useRef<number>(0);
-  const actualPlaybackTimeRef = useRef<number>(0);
+  const initialTotalListenedRef = useRef<number>(audioData.total_listened_seconds || 0);
   
   const { toast } = useToast();
   const saveIntervalRef = useRef<NodeJS.Timeout>();
@@ -102,20 +103,51 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
 
   // Save progress function using actual playback time
   const saveProgress = useCallback(async () => {
-    const currentTotalListened = audioData.total_listened_seconds || 0;
-    
-    await supabase
-      .from("audio_files")
-      .update({
-        last_position_seconds: currentTimeRef.current,
-        playback_speed: playbackSpeedRef.current,
-        total_listened_seconds: currentTotalListened + Math.floor(actualPlaybackTimeRef.current),
-      })
-      .eq("id", audioData.id);
-    
-    audioData.total_listened_seconds = currentTotalListened + Math.floor(actualPlaybackTimeRef.current);
-    actualPlaybackTimeRef.current = 0;
-  }, [audioData]);
+    try {
+      const totalListenedTime = initialTotalListenedRef.current + Math.round(accumulatedListenedTime);
+      const currentPosition = Math.round(currentTimeRef.current);
+      
+      console.log('💾 Saving progress:', {
+        position: currentPosition,
+        totalListened: totalListenedTime,
+        accumulated: Math.round(accumulatedListenedTime)
+      });
+      
+      const { error } = await supabase
+        .from("audio_files")
+        .update({
+          last_position_seconds: currentPosition,
+          playback_speed: playbackSpeedRef.current,
+          total_listened_seconds: totalListenedTime,
+        })
+        .eq("id", audioData.id);
+      
+      if (error) {
+        console.error('❌ Error saving progress:', error);
+        throw error;
+      }
+      
+      // Update the initial ref with the new total
+      initialTotalListenedRef.current = totalListenedTime;
+      setAccumulatedListenedTime(0);
+      
+      console.log('✅ Progress saved successfully');
+      
+      // Show subtle feedback
+      toast({
+        title: "Progress saved",
+        description: `Position: ${formatTime(currentPosition)}`,
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to save progress:', error);
+      toast({
+        title: "Failed to save progress",
+        description: "Your progress could not be saved.",
+        variant: "destructive",
+      });
+    }
+  }, [audioData.id, accumulatedListenedTime, toast]);
 
   // Initialize StudyWaveVoice
   useEffect(() => {
@@ -154,7 +186,8 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
         setIsPaused(false);
         setShowWaveform(false);
         if (playbackStartTimeRef.current > 0) {
-          actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+          const elapsed = (Date.now() - playbackStartTimeRef.current) / 1000;
+          setAccumulatedListenedTime(prev => prev + elapsed);
           playbackStartTimeRef.current = 0;
         }
         saveProgress();
@@ -201,14 +234,16 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
       
       saveIntervalRef.current = setInterval(() => {
         if (playbackStartTimeRef.current > 0) {
-          actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+          const elapsed = (Date.now() - playbackStartTimeRef.current) / 1000;
+          setAccumulatedListenedTime(prev => prev + elapsed);
           playbackStartTimeRef.current = Date.now();
         }
         saveProgress();
       }, 10000);
     } else {
       if (playbackStartTimeRef.current > 0) {
-        actualPlaybackTimeRef.current += (Date.now() - playbackStartTimeRef.current) / 1000;
+        const elapsed = (Date.now() - playbackStartTimeRef.current) / 1000;
+        setAccumulatedListenedTime(prev => prev + elapsed);
         playbackStartTimeRef.current = 0;
       }
       
@@ -223,6 +258,47 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
       }
     };
   }, [isPlaying, isPaused, saveProgress]);
+
+  // Save progress on unmount and beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (playbackStartTimeRef.current > 0) {
+        const elapsed = (Date.now() - playbackStartTimeRef.current) / 1000;
+        setAccumulatedListenedTime(prev => prev + elapsed);
+      }
+      if (accumulatedListenedTime > 0) {
+        // Synchronous save on page unload
+        const totalListenedTime = initialTotalListenedRef.current + Math.round(accumulatedListenedTime);
+        const currentPosition = Math.round(currentTimeRef.current);
+        
+        // Use fetch with keepalive for reliable saving on page unload
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/audio_files?id=eq.${audioData.id}`, {
+          method: 'PATCH',
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            last_position_seconds: currentPosition,
+            playback_speed: playbackSpeedRef.current,
+            total_listened_seconds: totalListenedTime,
+          })
+        }).catch(console.error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Save on component unmount
+      if (accumulatedListenedTime > 0) {
+        saveProgress();
+      }
+    };
+  }, [accumulatedListenedTime, audioData.id, saveProgress]);
 
   const togglePlayPause = useCallback(() => {
     if (!audioData.extracted_text) {
@@ -248,9 +324,11 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
         studyWaveVoice.resume();
       } else {
         studyWaveVoice.pause();
+        // Save progress when pausing
+        saveProgress();
       }
     } else {
-      actualPlaybackTimeRef.current = 0;
+      setAccumulatedListenedTime(0);
       playbackStartTimeRef.current = Date.now();
       const startPosition = duration > 0 ? currentTime / duration : 0;
       studyWaveVoice.setRate(playbackSpeed);
@@ -260,7 +338,7 @@ const AudioPlayer = ({ audioData }: AudioPlayerProps) => {
         autoDetectLanguage: true,
       });
     }
-  }, [audioData.extracted_text, isPlaying, isPaused, isVoiceReady, currentTime, duration, playbackSpeed, toast]);
+  }, [audioData.extracted_text, isPlaying, isPaused, isVoiceReady, currentTime, duration, playbackSpeed, toast, saveProgress]);
 
   const handleSpeedChange = (newSpeed: number) => {
     setPlaybackSpeed(newSpeed);
