@@ -17,8 +17,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AudioData {
   id: string;
-  file_path: string;
-  voice_id: string;
+  extracted_text: string | null;
+  last_position_seconds: number | null;
+  duration_seconds: number | null;
+  playback_speed: number | null;
+  total_listened_seconds?: number | null;
   created_at: string;
   pdf_documents?: {
     title: string;

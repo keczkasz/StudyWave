@@ -37,8 +37,8 @@ export interface PlaybackState {
 export const VOICE_PERSONALITIES: VoicePersonality[] = [
   // English voices
   {
-    id: "en-david",
-    name: "David",
+    id: "en-marcus",
+    name: "Marcus",
     description: "Professional English male voice, clear and authoritative",
     style: "English (Male)",
     language: 'en',
